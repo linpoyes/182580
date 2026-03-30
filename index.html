@@ -480,6 +480,14 @@ function CustomerView({
   const [success, setSuccess] = useState(null);
   const canvasRef = useRef(null);
   const [imgSrc, setImgSrc] = useState(null);
+
+  // Auto-sync stock every 10 seconds + when page becomes visible again
+  useEffect(function() {
+    var interval = setInterval(function() { loadData(); }, 10000);
+    var onVisible = function() { if (!document.hidden) loadData(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return function() { clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
+  }, [loadData]);
   const cartTotal = Object.values(cart).reduce((a, b) => a + b, 0);
   const isValid8 = cartTotal > 0 && cartTotal % 8 === 0;
   const cartPacks = cartTotal / 8;
