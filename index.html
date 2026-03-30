@@ -518,42 +518,48 @@ function CustomerView({
       ...cart
     };
 
-    // Remember current order count before submit
-    var orderCountBefore = orders.length;
-    setSubmitStatus("sending");
-    
-    // Single GET call to save order - GAS returns result directly
+    // Deduct stock locally
+    var newStock = {};
+    Object.keys(stock).forEach(function(k) { newStock[k] = stock[k]; });
+    Object.keys(savedCart).forEach(function(fid) {
+      newStock[fid] = Math.max(0, (newStock[fid] || 0) - savedCart[fid]);
+    });
+
+    // Assign local orderNo
+    order.orderNo = String(orders.length + 1).padStart(3, "0");
+
+    // Update UI immediately - show success
+    setStock(newStock);
+    setOrders(function(prev) { return prev.concat([order]); });
+    setSuccess(order);
+    setCart({});
+    setName("");
+    setPhone("");
+    setNote("");
+    setReferrer("");
+    setSubmitStatus("done");
+    setTimeout(function() { setSubmitStatus("idle"); }, 1500);
+
+    // Save to localStorage
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newStock)); } catch(e) {}
+    try {
+      var localOrders = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]");
+      localOrders.push(order);
+      localStorage.setItem(ORDERS_KEY, JSON.stringify(localOrders));
+    } catch(e) {}
+
+    // Send to GAS in background (fire-and-forget)
     gasCall({
       action: "saveOrder",
       order: order,
       stockDeductions: savedCart
     }).then(function(res) {
       if (res && res.ok) {
-        // GAS confirmed save - use returned data
-        order.orderNo = res.orderNo || "---";
-        if (res.stock) {
-          setStock(res.stock);
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(res.stock)); } catch(e) {}
-        }
-        setSuccess(order);
-        setCart({});
-        setName("");
-        setPhone("");
-        setNote("");
-        setReferrer("");
-        setSubmitStatus("done");
-        // Sync full data in background
-        setTimeout(function() { loadData(); setSubmitStatus("idle"); }, 1000);
-      } else {
-        console.error("saveOrder response:", res);
-        setSubmitStatus("error");
-        setTimeout(function() { setSubmitStatus("idle"); }, 4000);
+        console.log("GAS saved, orderNo:", res.orderNo);
       }
-    }).catch(function(e) {
-      console.error("saveOrder error:", e);
-      setSubmitStatus("error");
-      setTimeout(function() { setSubmitStatus("idle"); }, 4000);
-    });
+      // Sync latest data
+      loadData();
+    }).catch(function(e) { console.warn("GAS send failed:", e); });
   };
 
   // --- Generate order image on canvas ---
