@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -23,357 +24,364 @@ input, textarea, button { -webkit-appearance: none; }
 <script type="text/babel">
 const { useState, useEffect, useCallback, useRef } = React;
 
-// --- Constants ---
+// — Constants —
 const FLAVORS = [
-  { id: "strawberry", name: "草莓雪糕", sku: "352396", emoji: "🍓", color: "#FADADD" },
-  { id: "vanilla_caramel", name: "香草焦糖脆杏仁雪糕", sku: "352601", emoji: "🍦", color: "#F5E6CA" },
-  { id: "matcha", name: "抹茶脆果仁雪糕", sku: "432226", emoji: "🍵", color: "#C8E6C0" },
-  { id: "cookies_cream", name: "淇淋巧酥雪糕", sku: "432281", emoji: "🍪", color: "#E8DDD0" },
-  { id: "chocolate_almond", name: "巧克力脆杏仁雪糕", sku: "502311", emoji: "🍫", color: "#8B6C5C" },
-  { id: "macadamia", name: "夏威夷脆果仁雪糕", sku: "611910", emoji: "🌰", color: "#DEC8A0" },
+{ id: “strawberry”, name: “草莓雪糕”, sku: “352396”, emoji: “🍓”, color: “#FADADD” },
+{ id: “vanilla_caramel”, name: “香草焦糖脆杏仁雪糕”, sku: “352601”, emoji: “🍦”, color: “#F5E6CA” },
+{ id: “matcha”, name: “抹茶脆果仁雪糕”, sku: “432226”, emoji: “🍵”, color: “#C8E6C0” },
+{ id: “cookies_cream”, name: “淇淋巧酥雪糕”, sku: “432281”, emoji: “🍪”, color: “#E8DDD0” },
+{ id: “chocolate_almond”, name: “巧克力脆杏仁雪糕”, sku: “502311”, emoji: “🍫”, color: “#8B6C5C” },
+{ id: “macadamia”, name: “夏威夷脆果仁雪糕”, sku: “611910”, emoji: “🌰”, color: “#DEC8A0” },
 ];
 
 const PRICE_8_PACK = 516; // 買四送四 8支 $516
 const PRICE_PER_UNIT = 129; // 原價每支 $129（$1032/8）
-const ADMIN_PIN = "a182580"; // 門市端密碼
+const ADMIN_PIN = “a182580”; // 門市端密碼
 
 // === GAS API ===
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwxNufDCVemKkNW8WUu-dzDcvQj000RA9z_D0rbFh4_SOAxTHiSHTeuwdjJ3Op-VyAI/exec";
+const GAS_URL = “https://script.google.com/macros/s/AKfycbwxNufDCVemKkNW8WUu-dzDcvQj000RA9z_D0rbFh4_SOAxTHiSHTeuwdjJ3Op-VyAI/exec”;
 
 const api = async (body) => {
-  try {
-    const res = await fetch(GAS_URL, {
-      method: "POST",
-      body: JSON.stringify(body),
-      redirect: "follow",
-    });
-    const text = await res.text();
-    try { return JSON.parse(text); } catch { return { error: "Parse error", raw: text }; }
-  } catch (e) {
-    console.error("API error:", e);
-    return { error: e.toString() };
-  }
+try {
+const res = await fetch(GAS_URL, {
+method: “POST”,
+body: JSON.stringify(body),
+redirect: “follow”,
+});
+const text = await res.text();
+try { return JSON.parse(text); } catch { return { error: “Parse error”, raw: text }; }
+} catch (e) {
+console.error(“API error:”, e);
+return { error: e.toString() };
+}
 };
 
 const fetchData = async () => {
-  try {
-    const res = await fetch(GAS_URL, { redirect: "follow" });
-    const text = await res.text();
-    try { return JSON.parse(text); } catch { return { error: "Parse error", raw: text }; }
-  } catch (e) {
-    console.error("Fetch error:", e);
-    return { error: e.toString() };
-  }
+try {
+const res = await fetch(GAS_URL, { redirect: “follow” });
+const text = await res.text();
+try { return JSON.parse(text); } catch { return { error: “Parse error”, raw: text }; }
+} catch (e) {
+console.error(“Fetch error:”, e);
+return { error: e.toString() };
+}
 };
 
-const STORAGE_KEY = "haagen-stock";
-const ORDERS_KEY = "haagen-orders";
+const STORAGE_KEY = “haagen-stock”;
+const ORDERS_KEY = “haagen-orders”;
 
-// --- Helpers ---
+// — Helpers —
 function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
 function getOrderNumber(orders) {
-  return String(orders.length + 1).padStart(3, "0");
+return String(orders.length + 1).padStart(3, “0”);
 }
 
 function getInitialStock() {
-  const stock = {};
-  FLAVORS.forEach((f) => {
-    stock[f.id] = 0;
-  });
-  return stock;
+const stock = {};
+FLAVORS.forEach((f) => {
+stock[f.id] = 0;
+});
+return stock;
 }
 
-// --- Main App ---
+// — Main App —
 function App() {
-  const [mode, setMode] = useState("customer");
-  const [stock, setStock] = useState(null);
-  const [orders, setOrders] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState(false);
-  const [tapCount, setTapCount] = useState(0);
-  const tapTimer = useRef(null);
+const [mode, setMode] = useState(“customer”);
+const [stock, setStock] = useState(null);
+const [orders, setOrders] = useState(null);
+const [loading, setLoading] = useState(true);
+const [pin, setPin] = useState(””);
+const [pinError, setPinError] = useState(false);
+const [tapCount, setTapCount] = useState(0);
+const tapTimer = useRef(null);
 
-  // Load data from GAS (with localStorage fallback)
-  const loadData = useCallback(async () => {
-    const data = await fetchData();
-    if (data && data.ok) {
-      setStock(data.stock && Object.keys(data.stock).length > 0 ? data.stock : getInitialStock());
-      setOrders(data.orders || []);
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.stock)); } catch(e) {}
-      try { localStorage.setItem(ORDERS_KEY, JSON.stringify(data.orders)); } catch(e) {}
-      setLoading(false);
-      return;
-    }
-    // Fallback to localStorage
-    console.warn("GAS unavailable, using local cache");
-    try {
-      const s = localStorage.getItem(STORAGE_KEY);
-      const o = localStorage.getItem(ORDERS_KEY);
-      setStock(s ? JSON.parse(s) : getInitialStock());
-      setOrders(o ? JSON.parse(o) : []);
-    } catch {
-      setStock(getInitialStock());
-      setOrders([]);
-    }
-    setLoading(false);
-  }, []);
+// Load data from GAS (with localStorage fallback)
+const loadData = useCallback(async () => {
+const data = await fetchData();
+if (data && data.ok) {
+setStock(data.stock && Object.keys(data.stock).length > 0 ? data.stock : getInitialStock());
+setOrders(data.orders || []);
+try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.stock)); } catch(e) {}
+try { localStorage.setItem(ORDERS_KEY, JSON.stringify(data.orders)); } catch(e) {}
+setLoading(false);
+return;
+}
+// Fallback to localStorage
+console.warn(“GAS unavailable, using local cache”);
+try {
+const s = localStorage.getItem(STORAGE_KEY);
+const o = localStorage.getItem(ORDERS_KEY);
+setStock(s ? JSON.parse(s) : getInitialStock());
+setOrders(o ? JSON.parse(o) : []);
+} catch {
+setStock(getInitialStock());
+setOrders([]);
+}
+setLoading(false);
+}, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+useEffect(() => { loadData(); }, [loadData]);
 
-  // Save helpers - update UI immediately, sync to GAS in background, cache locally
-  const saveStock = (newStock) => {
-    setStock(newStock);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newStock)); } catch(e) {}
-    api({ action: "updateStock", stock: newStock }).catch(e => console.error(e));
-  };
-  const saveOrders = (newOrders) => {
-    setOrders(newOrders);
-    try { localStorage.setItem(ORDERS_KEY, JSON.stringify(newOrders)); } catch(e) {}
-    api({ action: "updateOrders", orders: newOrders }).catch(e => console.error(e));
-  };
+// Save helpers - update UI immediately, sync to GAS in background, cache locally
+const saveStock = (newStock) => {
+setStock(newStock);
+try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newStock)); } catch(e) {}
+api({ action: “updateStock”, stock: newStock }).catch(e => console.error(e));
+};
+const saveOrders = (newOrders) => {
+setOrders(newOrders);
+try { localStorage.setItem(ORDERS_KEY, JSON.stringify(newOrders)); } catch(e) {}
+api({ action: “updateOrders”, orders: newOrders }).catch(e => console.error(e));
+};
 
-  const totalRemaining = stock ? Object.values(stock).reduce((a, b) => a + b, 0) : 0;
-  const totalSold = orders ? orders.reduce((sum, o) => sum + o.total, 0) : 0;
-  const totalStock = totalRemaining + totalSold;
+const totalRemaining = stock ? Object.values(stock).reduce((a, b) => a + b, 0) : 0;
+const totalSold = orders ? orders.reduce((sum, o) => sum + o.total, 0) : 0;
+const totalStock = totalRemaining + totalSold;
 
-  if (loading) return <LoadingScreen />;
+if (loading) return <LoadingScreen />;
 
-  return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #0A1628 0%, #0D2137 30%, #0A1628 100%)", fontFamily: "'Noto Sans TC', sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Pacifico&display=swap" rel="stylesheet" />
-      
-      {/* Header - Summer vibes */}
-      <header style={{
-        background: "linear-gradient(135deg, #00B4DC 0%, #00D4AA 50%, #FFD93D 100%)",
-        padding: "22px 16px 16px",
-        textAlign: "center",
-        position: "relative",
-        overflow: "hidden",
+return (
+<div style={{ minHeight: “100vh”, background: “linear-gradient(180deg, #0A1628 0%, #0D2137 30%, #0A1628 100%)”, fontFamily: “‘Noto Sans TC’, sans-serif” }}>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Pacifico&display=swap" rel="stylesheet" />
+
+```
+  {/* Header - Summer vibes */}
+  <header style={{
+    background: "linear-gradient(135deg, #00B4DC 0%, #00D4AA 50%, #FFD93D 100%)",
+    padding: "22px 16px 16px",
+    textAlign: "center",
+    position: "relative",
+    overflow: "hidden",
+  }}>
+    {/* Wave pattern overlay */}
+    <div style={{
+      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      background: "repeating-linear-gradient(110deg, transparent, transparent 30px, rgba(255,255,255,0.08) 30px, rgba(255,255,255,0.08) 60px)",
+    }} />
+    {/* Sun glow */}
+    <div style={{
+      position: "absolute", top: "-30px", right: "-20px", width: "100px", height: "100px",
+      background: "radial-gradient(circle, rgba(255,217,61,0.4) 0%, transparent 70%)",
+      borderRadius: "50%",
+    }} />
+    <div style={{ position: "relative", zIndex: 1 }}>
+      <div style={{ fontSize: "11px", letterSpacing: "6px", color: "rgba(255,255,255,0.9)", fontWeight: 500, marginBottom: "4px", cursor: "default", userSelect: "none" }}
+        onClick={() => {
+          if (mode === "admin") return;
+          const next = tapCount + 1;
+          setTapCount(next);
+          clearTimeout(tapTimer.current);
+          if (next >= 5) {
+            setTapCount(0);
+            setMode("admin_locked");
+            setPin("");
+            setPinError(false);
+          } else {
+            tapTimer.current = setTimeout(() => setTapCount(0), 2000);
+          }
+        }}>
+        HÄAGEN-DAZS
+      </div>
+      <h1 style={{
+        fontFamily: "'Pacifico', cursive",
+        fontSize: "24px", fontWeight: 400, color: "#fff",
+        margin: "0 0 2px", textShadow: "0 2px 10px rgba(0,0,0,0.2)",
       }}>
-        {/* Wave pattern overlay */}
+        🍦 雪糕買四送四
+      </h1>
+      <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.75)", fontWeight: 400, marginBottom: "4px" }}>
+        4/10 ~ 4/14 獨家活動 ・ 8支 $516
+      </div>
+      <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.85)", fontWeight: 400 }}>
+        {totalStock > 0 ? `限量 ${totalStock} 支 ・ 已售 ${totalSold} 支 ・ 剩餘 ${totalRemaining} 支` : "尚未設定庫存"}
+      </div>
+      {/* Progress bar */}
+      <div style={{
+        margin: "10px auto 0", maxWidth: "280px", height: "5px",
+        background: "rgba(255,255,255,0.2)", borderRadius: "3px", overflow: "hidden",
+      }}>
         <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-          background: "repeating-linear-gradient(110deg, transparent, transparent 30px, rgba(255,255,255,0.08) 30px, rgba(255,255,255,0.08) 60px)",
+          width: `${totalStock > 0 ? (totalSold / totalStock) * 100 : 0}%`,
+          height: "100%", background: "linear-gradient(90deg, #FFD93D, #FF6B6B)",
+          borderRadius: "2px", transition: "width 0.5s ease",
         }} />
-        {/* Sun glow */}
-        <div style={{
-          position: "absolute", top: "-30px", right: "-20px", width: "100px", height: "100px",
-          background: "radial-gradient(circle, rgba(255,217,61,0.4) 0%, transparent 70%)",
-          borderRadius: "50%",
-        }} />
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ fontSize: "11px", letterSpacing: "6px", color: "rgba(255,255,255,0.9)", fontWeight: 500, marginBottom: "4px", cursor: "default", userSelect: "none" }}
-            onClick={() => {
-              if (mode === "admin") return;
-              const next = tapCount + 1;
-              setTapCount(next);
-              clearTimeout(tapTimer.current);
-              if (next >= 5) {
-                setTapCount(0);
-                setMode("admin_locked");
-                setPin("");
-                setPinError(false);
-              } else {
-                tapTimer.current = setTimeout(() => setTapCount(0), 2000);
-              }
-            }}>
-            HÄAGEN-DAZS
-          </div>
-          <h1 style={{
-            fontFamily: "'Pacifico', cursive",
-            fontSize: "24px", fontWeight: 400, color: "#fff",
-            margin: "0 0 2px", textShadow: "0 2px 10px rgba(0,0,0,0.2)",
-          }}>
-            🍦 雪糕買四送四
-          </h1>
-          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.75)", fontWeight: 400, marginBottom: "4px" }}>
-            4/10 ~ 4/14 獨家活動 ・ 8支 $516
-          </div>
-          <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.85)", fontWeight: 400 }}>
-            {totalStock > 0 ? `限量 ${totalStock} 支 ・ 已售 ${totalSold} 支 ・ 剩餘 ${totalRemaining} 支` : "尚未設定庫存"}
-          </div>
-          {/* Progress bar */}
-          <div style={{
-            margin: "10px auto 0", maxWidth: "280px", height: "5px",
-            background: "rgba(255,255,255,0.2)", borderRadius: "3px", overflow: "hidden",
-          }}>
-            <div style={{
-              width: `${totalStock > 0 ? (totalSold / totalStock) * 100 : 0}%`,
-              height: "100%", background: "linear-gradient(90deg, #FFD93D, #FF6B6B)",
-              borderRadius: "2px", transition: "width 0.5s ease",
-            }} />
-          </div>
-        </div>
-      </header>
-
-      {/* No visible tab switcher - admin accessed by tapping HÄAGEN-DAZS 5 times */}
-
-      {/* Content */}
-      <main style={{ maxWidth: "480px", margin: "0 auto", padding: "0 0 80px" }}>
-        {mode === "customer" && (
-          <CustomerView stock={stock} saveStock={saveStock} orders={orders} saveOrders={saveOrders} loadData={loadData} />
-        )}
-        {mode === "admin_locked" && (
-          <PinScreen pin={pin} setPin={setPin} pinError={pinError} onBack={() => setMode("customer")} onSubmit={(fullPin) => {
-            if (fullPin === ADMIN_PIN) {
-              setMode("admin");
-              setPinError(false);
-            } else {
-              setPinError(true);
-            }
-          }} />
-        )}
-        {mode === "admin" && (
-          <AdminView stock={stock} saveStock={saveStock} orders={orders} saveOrders={saveOrders} onLogout={() => setMode("customer")} loadData={loadData} />
-        )}
-      </main>
+      </div>
     </div>
-  );
+  </header>
+
+  {/* No visible tab switcher - admin accessed by tapping HÄAGEN-DAZS 5 times */}
+
+  {/* Content */}
+  <main style={{ maxWidth: "480px", margin: "0 auto", padding: "0 0 80px" }}>
+    {mode === "customer" && (
+      <CustomerView stock={stock} saveStock={saveStock} orders={orders} saveOrders={saveOrders} loadData={loadData} />
+    )}
+    {mode === "admin_locked" && (
+      <PinScreen pin={pin} setPin={setPin} pinError={pinError} onBack={() => setMode("customer")} onSubmit={(fullPin) => {
+        if (fullPin === ADMIN_PIN) {
+          setMode("admin");
+          setPinError(false);
+        } else {
+          setPinError(true);
+        }
+      }} />
+    )}
+    {mode === "admin" && (
+      <AdminView stock={stock} saveStock={saveStock} orders={orders} saveOrders={saveOrders} onLogout={() => setMode("customer")} loadData={loadData} />
+    )}
+  </main>
+</div>
+```
+
+);
 }
 
-// --- Loading ---
+// — Loading —
 function LoadingScreen() {
-  return (
-    <div style={{
-      minHeight: "100vh", background: "linear-gradient(180deg, #0A1628, #0D2137)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      color: "#00D4AA", fontFamily: "'Noto Sans TC', sans-serif", fontSize: "16px",
-    }}>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: "48px", marginBottom: "12px", animation: "bounce 1s ease infinite" }}>🍦</div>
-        <div>載入中...</div>
-        <style>{`@keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }`}</style>
-      </div>
-    </div>
-  );
+return (
+<div style={{
+minHeight: “100vh”, background: “linear-gradient(180deg, #0A1628, #0D2137)”,
+display: “flex”, alignItems: “center”, justifyContent: “center”,
+color: “#00D4AA”, fontFamily: “‘Noto Sans TC’, sans-serif”, fontSize: “16px”,
+}}>
+<div style={{ textAlign: “center” }}>
+<div style={{ fontSize: “48px”, marginBottom: “12px”, animation: “bounce 1s ease infinite” }}>🍦</div>
+<div>載入中…</div>
+<style>{`@keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }`}</style>
+</div>
+</div>
+);
 }
 
-// --- PIN Screen ---
+// — PIN Screen —
 function PinScreen({ pin, setPin, pinError, onSubmit, onBack }) {
-  return (
-    <div style={{
-      padding: "60px 20px", textAlign: "center",
-      background: "linear-gradient(180deg, rgba(0,180,220,0.08) 0%, transparent 60%)",
-      minHeight: "70vh",
-    }}>
-      <div style={{ fontSize: "56px", marginBottom: "12px" }}>🍦</div>
-      <h2 style={{ color: "#00B4DC", fontSize: "18px", fontWeight: 700, margin: "0 0 6px" }}>門市管理端</h2>
-      <p style={{ color: "#88B0C0", fontSize: "13px", margin: "0 0 28px" }}>請輸入管理密碼</p>
-      <div style={{ maxWidth: "280px", margin: "0 auto" }}>
-        <input
-          type="password"
-          value={pin}
-          onChange={e => setPin(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && pin.length > 0) onSubmit(pin); }}
-          placeholder="輸入密碼"
-          autoFocus
-          style={{
-            width: "100%", boxSizing: "border-box",
-            padding: "16px 20px", borderRadius: "12px",
-            border: `2px solid ${pinError ? "#ff6b6b" : "#00B4DC40"}`,
-            background: "rgba(0,180,220,0.06)", color: "#fff",
-            fontSize: "18px", textAlign: "center", letterSpacing: "3px",
-            fontFamily: "'Noto Sans TC', sans-serif", outline: "none",
-          }}
-        />
-        {pinError && <p style={{ color: "#ff6b6b", fontSize: "13px", margin: "10px 0 0" }}>密碼錯誤，請重試</p>}
-        <button onClick={() => { if (pin.length > 0) onSubmit(pin); }} style={{
-          width: "100%", marginTop: "16px", padding: "14px",
-          border: "none", borderRadius: "12px",
-          background: pin.length > 0 ? "linear-gradient(135deg, #00B4DC, #0088A8)" : "#1A2A30",
-          color: pin.length > 0 ? "#fff" : "#555",
-          fontSize: "15px", fontWeight: 700, cursor: pin.length > 0 ? "pointer" : "default",
-          fontFamily: "'Noto Sans TC', sans-serif",
-          transition: "all 0.2s",
-        }}>確認</button>
-      </div>
-      <button onClick={onBack} style={{
-        marginTop: "28px", padding: "12px 32px", border: "1px solid #1A3040",
-        borderRadius: "10px", background: "transparent", color: "#88B0C0",
-        fontSize: "14px", cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-      }}>← 返回客戶端</button>
-    </div>
-  );
+return (
+<div style={{
+padding: “60px 20px”, textAlign: “center”,
+background: “linear-gradient(180deg, rgba(0,180,220,0.08) 0%, transparent 60%)”,
+minHeight: “70vh”,
+}}>
+<div style={{ fontSize: “56px”, marginBottom: “12px” }}>🍦</div>
+<h2 style={{ color: “#00B4DC”, fontSize: “18px”, fontWeight: 700, margin: “0 0 6px” }}>門市管理端</h2>
+<p style={{ color: “#88B0C0”, fontSize: “13px”, margin: “0 0 28px” }}>請輸入管理密碼</p>
+<div style={{ maxWidth: “280px”, margin: “0 auto” }}>
+<input
+type=“password”
+value={pin}
+onChange={e => setPin(e.target.value)}
+onKeyDown={e => { if (e.key === “Enter” && pin.length > 0) onSubmit(pin); }}
+placeholder=“輸入密碼”
+autoFocus
+style={{
+width: “100%”, boxSizing: “border-box”,
+padding: “16px 20px”, borderRadius: “12px”,
+border: `2px solid ${pinError ? "#ff6b6b" : "#00B4DC40"}`,
+background: “rgba(0,180,220,0.06)”, color: “#fff”,
+fontSize: “18px”, textAlign: “center”, letterSpacing: “3px”,
+fontFamily: “‘Noto Sans TC’, sans-serif”, outline: “none”,
+}}
+/>
+{pinError && <p style={{ color: “#ff6b6b”, fontSize: “13px”, margin: “10px 0 0” }}>密碼錯誤，請重試</p>}
+<button onClick={() => { if (pin.length > 0) onSubmit(pin); }} style={{
+width: “100%”, marginTop: “16px”, padding: “14px”,
+border: “none”, borderRadius: “12px”,
+background: pin.length > 0 ? “linear-gradient(135deg, #00B4DC, #0088A8)” : “#1A2A30”,
+color: pin.length > 0 ? “#fff” : “#555”,
+fontSize: “15px”, fontWeight: 700, cursor: pin.length > 0 ? “pointer” : “default”,
+fontFamily: “‘Noto Sans TC’, sans-serif”,
+transition: “all 0.2s”,
+}}>確認</button>
+</div>
+<button onClick={onBack} style={{
+marginTop: “28px”, padding: “12px 32px”, border: “1px solid #1A3040”,
+borderRadius: “10px”, background: “transparent”, color: “#88B0C0”,
+fontSize: “14px”, cursor: “pointer”, fontFamily: “‘Noto Sans TC’, sans-serif”,
+}}>← 返回客戶端</button>
+</div>
+);
 }
 
-// --- Canvas helper ---
+// — Canvas helper —
 function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
+ctx.beginPath();
+ctx.moveTo(x + r, y);
+ctx.lineTo(x + w - r, y);
+ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+ctx.lineTo(x + w, y + h - r);
+ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+ctx.lineTo(x + r, y + h);
+ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+ctx.lineTo(x, y + r);
+ctx.quadraticCurveTo(x, y, x + r, y);
+ctx.closePath();
 }
 
-// --- Customer View ---
+// — Customer View —
 function CustomerView({ stock, saveStock, orders, saveOrders, loadData }) {
-  const [cart, setCart] = useState({});
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [note, setNote] = useState("");
-  const [referrer, setReferrer] = useState("");
-  const [phoneError, setPhoneError] = useState("");
-  const [success, setSuccess] = useState(null);
-  const canvasRef = useRef(null);
-  const [imgSrc, setImgSrc] = useState(null);
+const [cart, setCart] = useState({});
+const [name, setName] = useState(””);
+const [phone, setPhone] = useState(””);
+const [note, setNote] = useState(””);
+const [referrer, setReferrer] = useState(””);
+const [phoneError, setPhoneError] = useState(””);
+const [submitStatus, setSubmitStatus] = useState(“idle”); // idle | sending | done | error
+const [success, setSuccess] = useState(null);
+const canvasRef = useRef(null);
+const [imgSrc, setImgSrc] = useState(null);
 
-  const cartTotal = Object.values(cart).reduce((a, b) => a + b, 0);
-  const isValid8 = cartTotal > 0 && cartTotal % 8 === 0;
-  const cartPacks = cartTotal / 8;
-  const cartAmount = cartPacks * PRICE_8_PACK;
+const cartTotal = Object.values(cart).reduce((a, b) => a + b, 0);
+const isValid8 = cartTotal > 0 && cartTotal % 8 === 0;
+const cartPacks = cartTotal / 8;
+const cartAmount = cartPacks * PRICE_8_PACK;
 
-  const addToCart = (flavorId) => {
-    if ((stock[flavorId] || 0) - (cart[flavorId] || 0) <= 0) return;
-    setCart(c => ({ ...c, [flavorId]: (c[flavorId] || 0) + 1 }));
-  };
-  const removeFromCart = (flavorId) => {
-    setCart(c => {
-      const next = { ...c };
-      if (next[flavorId] > 1) next[flavorId]--;
-      else delete next[flavorId];
-      return next;
-    });
-  };
+const addToCart = (flavorId) => {
+if ((stock[flavorId] || 0) - (cart[flavorId] || 0) <= 0) return;
+setCart(c => ({ …c, [flavorId]: (c[flavorId] || 0) + 1 }));
+};
+const removeFromCart = (flavorId) => {
+setCart(c => {
+const next = { …c };
+if (next[flavorId] > 1) next[flavorId]–;
+else delete next[flavorId];
+return next;
+});
+};
 
-  const isPhoneValid = /^09\d{8}$/.test(phone.trim());
+const isPhoneValid = /^09\d{8}$/.test(phone.trim());
 
-  const handleSubmit = () => {
-    if (!name.trim()) return;
-    if (!isPhoneValid) { setPhoneError("請輸入正確的10碼手機號碼（09開頭）"); return; }
-    if (!isValid8) return;
-    setPhoneError("");
-    
-    // Build order (orderNo will be assigned by server)
-    const order = {
-      id: generateId(),
-      orderNo: "---",
-      name: name.trim(),
-      phone: phone.trim(),
-      referrer: referrer.trim(),
-      note: note.trim(),
-      items: { ...cart },
-      total: cartTotal,
-      amount: cartAmount,
-      time: new Date().toLocaleString("zh-TW"),
-      status: "pending",
-    };
-    
-    // Optimistic UI update
-    const newStock = { ...stock };
-    for (const [fid, qty] of Object.entries(cart)) {
-      newStock[fid] = Math.max(0, (newStock[fid] || 0) - qty);
-    }
-    setStock(newStock);
+const handleSubmit = () => {
+if (!name.trim()) return;
+if (!isPhoneValid) { setPhoneError(“請輸入正確的10碼手機號碼（09開頭）”); return; }
+if (!isValid8) return;
+if (submitStatus === “sending”) return;
+setPhoneError(””);
+setSubmitStatus(“sending”);
+
+```
+const order = {
+  id: generateId(),
+  orderNo: "---",
+  name: name.trim(),
+  phone: phone.trim(),
+  referrer: referrer.trim(),
+  note: note.trim(),
+  items: { ...cart },
+  total: cartTotal,
+  amount: cartAmount,
+  time: new Date().toLocaleString("zh-TW"),
+  status: "pending",
+};
+
+const savedCart = { ...cart };
+
+// Send to GAS atomically
+api({ action: "saveOrder", order, stockDeductions: savedCart }).then(res => {
+  if (res && res.ok) {
+    order.orderNo = res.orderNo || "---";
+    if (res.stock) setStock(res.stock);
     setOrders(prev => [...prev, order]);
     setSuccess(order);
     setCart({});
@@ -381,1470 +389,1511 @@ function CustomerView({ stock, saveStock, orders, saveOrders, loadData }) {
     setPhone("");
     setNote("");
     setReferrer("");
-    
-    // Send to GAS atomically — server assigns orderNo and deducts stock
-    api({ action: "saveOrder", order, stockDeductions: { ...cart } }).then(res => {
-      if (res && res.ok) {
-        // Update with server-assigned orderNo and accurate stock
-        const serverOrderNo = res.orderNo;
-        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, orderNo: serverOrderNo } : o));
-        setSuccess(prev => prev && prev.id === order.id ? { ...prev, orderNo: serverOrderNo } : prev);
-        if (res.stock) setStock(res.stock);
-        // Refresh all data to stay in sync
-        setTimeout(() => loadData(), 1000);
-      }
-    }).catch(e => console.error("saveOrder error:", e));
-  };
-
-  // --- Generate order image on canvas ---
-  const generateImage = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !success) return;
-    const dpr = 2;
-    const W = 390 * dpr;
-    const items = Object.entries(success.items);
-    const hasNote = success.note && success.note.length > 0;
-    const hasReferrer = success.referrer && success.referrer.length > 0;
-    const H = (520 + items.length * 36 + (hasNote ? 60 : 0) + (hasReferrer ? 30 : 0)) * dpr;
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext("2d");
-    ctx.scale(dpr, dpr);
-    const w = W / dpr, h = H / dpr;
-
-    // Background
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#1A0A10");
-    bg.addColorStop(0.3, "#0D0D0D");
-    bg.addColorStop(1, "#0D0D0D");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
-
-    // Top accent bar
-    const accent = ctx.createLinearGradient(0, 0, w, 0);
-    accent.addColorStop(0, "#8B0023");
-    accent.addColorStop(0.5, "#C41E3A");
-    accent.addColorStop(1, "#8B0023");
-    ctx.fillStyle = accent;
-    ctx.fillRect(0, 0, w, 6);
-
-    // Gold decorative line
-    ctx.strokeStyle = "#FFD70040";
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(30, 50);
-    ctx.lineTo(w - 30, 50);
-    ctx.stroke();
-
-    // Brand
-    ctx.fillStyle = "#FFD70099";
-    ctx.font = "500 10px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "center";
-    ctx.letterSpacing = "4px";
-    ctx.fillText("H Ä A G E N - D A Z S", w / 2, 36);
-
-    // Title
-    ctx.fillStyle = "#FFD700";
-    ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
-    ctx.fillText("雪糕買四送四 預購憑證", w / 2, 76);
-
-    // Decorative line
-    ctx.strokeStyle = "#FFD70040";
-    ctx.beginPath();
-    ctx.moveTo(30, 90);
-    ctx.lineTo(w - 30, 90);
-    ctx.stroke();
-
-    // Status badge
-    ctx.fillStyle = "#28a74530";
-    roundRect(ctx, w / 2 - 60, 102, 120, 28, 14);
-    ctx.fill();
-    ctx.fillStyle = "#28a745";
-    ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    ctx.fillText("✓ 預購成功", w / 2, 121);
-
-    let y = 156;
-
-    // Order info card
-    ctx.fillStyle = "#1A1A1A";
-    const cardH = 80 + items.length * 36 + (hasNote ? 50 : 0);
-    roundRect(ctx, 20, y - 10, w - 40, cardH, 12);
-    ctx.fill();
-    ctx.strokeStyle = "#333";
-    ctx.lineWidth = 1;
-    roundRect(ctx, 20, y - 10, w - 40, cardH, 12);
-    ctx.stroke();
-
-    ctx.textAlign = "left";
-
-    // Order ID
-    ctx.fillStyle = "#888";
-    ctx.font = "400 11px 'Noto Sans TC', sans-serif";
-    ctx.fillText("訂單編號", 36, y + 8);
-    ctx.fillStyle = "#FFD700";
-    ctx.font = "bold 14px monospace";
-    ctx.fillText("#" + success.orderNo, 36, y + 26);
-
-    // Name & phone
-    ctx.fillStyle = "#888";
-    ctx.font = "400 11px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText(success.time, w - 36, y + 8);
-    ctx.fillStyle = "#fff";
-    ctx.font = "500 14px 'Noto Sans TC', sans-serif";
-    ctx.fillText(success.name + "  " + success.phone, w - 36, y + 26);
-
-    // Divider
-    y += 42;
-    ctx.strokeStyle = "#33333380";
-    ctx.beginPath();
-    ctx.moveTo(36, y);
-    ctx.lineTo(w - 36, y);
-    ctx.stroke();
-    y += 16;
-
-    // Items
-    items.forEach(([fid, qty]) => {
-      const fl = FLAVORS.find(f => f.id === fid);
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#eee";
-      ctx.font = "400 14px 'Noto Sans TC', sans-serif";
-      ctx.fillText(fl?.emoji + "  " + fl?.name, 36, y);
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#aaa";
-      ctx.fillText("× " + qty, w - 36, y);
-      y += 36;
-    });
-
-    // Referrer
-    if (hasReferrer) {
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#888";
-      ctx.font = "400 11px 'Noto Sans TC', sans-serif";
-      ctx.fillText("推薦人", 36, y);
-      ctx.fillStyle = "#ccc";
-      ctx.font = "400 13px 'Noto Sans TC', sans-serif";
-      ctx.fillText(success.referrer, 100, y);
-      y += 28;
-    }
-
-    // Note
-    if (hasNote) {
-      ctx.strokeStyle = "#33333380";
-      ctx.beginPath();
-      ctx.moveTo(36, y - 12);
-      ctx.lineTo(w - 36, y - 12);
-      ctx.stroke();
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#888";
-      ctx.font = "400 11px 'Noto Sans TC', sans-serif";
-      ctx.fillText("備註", 36, y + 6);
-      ctx.fillStyle = "#ccc";
-      ctx.font = "400 13px 'Noto Sans TC', sans-serif";
-      ctx.fillText(success.note.slice(0, 40), 36, y + 24);
-      y += 46;
-    }
-
-    // Total bar
-    y += 6;
-    ctx.fillStyle = "#C41E3A18";
-    roundRect(ctx, 20, y, w - 40, 48, 12);
-    ctx.fill();
-    ctx.textAlign = "left";
-    ctx.fillStyle = "#FFD700";
-    ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
-    ctx.fillText("合計", 36, y + 30);
-    ctx.textAlign = "right";
-    ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
-    ctx.fillText(success.total + " 支 ・ $" + success.amount, w - 36, y + 31);
-
-    // Footer notice
-    y += 70;
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#FFD70080";
-    ctx.font = "500 12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("📱 到貨後門市夥伴將通知您前來取貨", w / 2, y);
-    ctx.fillStyle = "#666";
-    ctx.font = "400 11px 'Noto Sans TC', sans-serif";
-    ctx.fillText("請出示此憑證畫面即可取貨", w / 2, y + 22);
-
-    // Bottom accent
-    ctx.fillStyle = accent;
-    ctx.fillRect(0, h - 4, w, 4);
-
-    // Convert to image data URL
-    try {
-      setImgSrc(canvas.toDataURL("image/png"));
-    } catch(e) { console.error("toDataURL error", e); }
-  }, [success]);
-
-  useEffect(() => {
-    if (success) {
-      setImgSrc(null);
-      setTimeout(generateImage, 150);
-    }
-  }, [success, generateImage]);
-
-  if (success) {
-    return (
-      <div style={{ padding: "24px 16px", textAlign: "center" }}>
-        <div style={{
-          width: "72px", height: "72px", borderRadius: "50%",
-          background: "linear-gradient(135deg, #28a745, #20c997)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          margin: "0 auto 16px", fontSize: "36px",
-          animation: "popIn 0.4s ease",
-        }}>✓</div>
-        <style>{`@keyframes popIn { 0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }`}</style>
-        <h2 style={{ color: "#FFD700", fontSize: "20px", fontWeight: 700, margin: "0 0 4px" }}>預購成功！</h2>
-        <p style={{ color: "#aaa", fontSize: "12px", margin: "0 0 20px" }}>👆 長按下方圖片即可儲存到相簿</p>
-
-        {/* Hidden canvas for generation */}
-        <canvas ref={canvasRef} style={{ display: "none" }} />
-
-        {/* Visible image for long-press save */}
-        {imgSrc ? (
-          <img
-            src={imgSrc}
-            alt="預購憑證"
-            style={{
-              width: "100%", maxWidth: "390px", borderRadius: "12px",
-              border: "1px solid #333",
-            }}
-          />
-        ) : (
-          <div style={{
-            width: "100%", maxWidth: "390px", height: "400px", margin: "0 auto",
-            background: "#1A1A1A", borderRadius: "12px", border: "1px solid #333",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#888", fontSize: "14px",
-          }}>
-            圖片生成中...
-          </div>
-        )}
-
-        <div style={{
-          marginTop: "12px", padding: "10px", borderRadius: "8px",
-          background: "#FFD70010", border: "1px solid #FFD70030",
-        }}>
-          <p style={{ color: "#FFD700", fontSize: "12px", margin: 0, fontWeight: 500 }}>
-            📱 手機：長按圖片 → 儲存圖片 / 加入照片
-          </p>
-          <p style={{ color: "#888", fontSize: "11px", margin: "4px 0 0" }}>
-            取貨時出示此圖片即可
-          </p>
-        </div>
-
-        <button onClick={() => { setSuccess(null); setImgSrc(null); }} style={{
-          marginTop: "16px", padding: "14px 40px", border: "none", borderRadius: "10px",
-          background: "#1A1A1A", border: "1px solid #333",
-          color: "#aaa", fontSize: "15px", fontWeight: 500, cursor: "pointer",
-          fontFamily: "'Noto Sans TC', sans-serif",
-        }}>
-          繼續預購
-        </button>
-      </div>
-    );
+    setSubmitStatus("done");
+    setTimeout(() => { loadData(); setSubmitStatus("idle"); }, 1500);
+  } else {
+    console.error("saveOrder failed:", res);
+    setSubmitStatus("error");
+    setTimeout(() => setSubmitStatus("idle"), 3000);
   }
+}).catch(e => {
+  console.error("saveOrder error:", e);
+  setSubmitStatus("error");
+  setTimeout(() => setSubmitStatus("idle"), 3000);
+});
+```
 
-  return (
-    <div style={{ padding: "16px" }}>
-      {/* Flavor Grid */}
-      <h3 style={{ color: "#FFD700", fontSize: "14px", fontWeight: 700, margin: "0 0 12px", letterSpacing: "1px" }}>
-        選擇口味
-      </h3>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px", marginBottom: "20px" }}>
-        {FLAVORS.map((f) => {
-          const remaining = (stock[f.id] || 0) - (cart[f.id] || 0);
-          const soldOut = stock[f.id] <= 0;
-          const inCart = cart[f.id] || 0;
-          return (
-            <div key={f.id} style={{
-              background: soldOut ? "#1A1A1A" : "#1A1A1A",
-              borderRadius: "12px", padding: "12px",
-              border: `1px solid ${inCart > 0 ? "#00D4AA" : "#333"}`,
-              opacity: soldOut ? 0.4 : 1,
-              transition: "all 0.2s",
-              position: "relative",
-            }}>
-              {soldOut && (
-                <div style={{
-                  position: "absolute", top: "50%", left: "50%",
-                  transform: "translate(-50%, -50%) rotate(-20deg)",
-                  color: "#ff4444", fontSize: "16px", fontWeight: 900,
-                  letterSpacing: "2px", opacity: 0.8,
-                }}>售完</div>
-              )}
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                <span style={{ fontSize: "20px" }}>{f.emoji}</span>
-                <span style={{ color: "#fff", fontSize: "13px", fontWeight: 500, lineHeight: "1.2" }}>{f.name}</span>
-              </div>
-              <div style={{ fontSize: "10px", color: "#666", marginBottom: "6px" }}>
-                {f.sku} ・ 庫存 {stock[f.id]} 支
-              </div>
-              {!soldOut && (
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <button onClick={() => removeFromCart(f.id)} disabled={!inCart} style={{
-                    width: "32px", height: "32px", borderRadius: "8px", border: "none",
-                    background: inCart ? "#333" : "#222", color: inCart ? "#fff" : "#555",
-                    fontSize: "18px", cursor: inCart ? "pointer" : "default",
-                    fontFamily: "'Noto Sans TC', sans-serif",
-                  }}>−</button>
-                  <span style={{
-                    color: "#00D4AA", fontSize: "18px", fontWeight: 700,
-                    minWidth: "28px", textAlign: "center",
-                  }}>{inCart}</span>
-                  <button onClick={() => addToCart(f.id)} disabled={remaining <= 0} style={{
-                    width: "32px", height: "32px", borderRadius: "8px", border: "none",
-                    background: remaining > 0 ? "#C41E3A" : "#222",
-                    color: remaining > 0 ? "#fff" : "#555",
-                    fontSize: "18px", cursor: remaining > 0 ? "pointer" : "default",
-                    fontFamily: "'Noto Sans TC', sans-serif",
-                  }}>+</button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+};
 
-      {/* Cart Summary */}
-      {cartTotal > 0 && (
-        <div style={{
-          background: "#1A1A1A", borderRadius: "12px", padding: "14px",
-          border: `1px solid ${isValid8 ? "#FFD700" : "#ff9f43"}`, marginBottom: "16px",
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-            <span style={{ color: "#FFD700", fontSize: "14px", fontWeight: 700 }}>🛒 已選 {cartTotal} 支</span>
-            {isValid8 && <span style={{ color: "#FFD93D", fontSize: "18px", fontWeight: 900 }}>${cartAmount}</span>}
-          </div>
-          {isValid8 ? (
-            <div style={{ color: "#888", fontSize: "11px" }}>
-              共 {cartPacks} 組（每組 8 支 ${PRICE_8_PACK}）
-            </div>
-          ) : (
-            <div style={{
-              color: "#ff9f43", fontSize: "12px", fontWeight: 500,
-              display: "flex", alignItems: "center", gap: "4px",
-            }}>
-              ⚠️ 需湊滿 8 的倍數才能預購（還差 {8 - (cartTotal % 8)} 支）
-            </div>
-          )}
-        </div>
-      )}
+// — Generate order image on canvas —
+const generateImage = useCallback(() => {
+const canvas = canvasRef.current;
+if (!canvas || !success) return;
+const dpr = 2;
+const W = 390 * dpr;
+const items = Object.entries(success.items);
+const hasNote = success.note && success.note.length > 0;
+const hasReferrer = success.referrer && success.referrer.length > 0;
+const H = (520 + items.length * 36 + (hasNote ? 60 : 0) + (hasReferrer ? 30 : 0)) * dpr;
+canvas.width = W;
+canvas.height = H;
+const ctx = canvas.getContext(“2d”);
+ctx.scale(dpr, dpr);
+const w = W / dpr, h = H / dpr;
 
-      {/* Customer Info */}
-      <h3 style={{ color: "#FFD700", fontSize: "14px", fontWeight: 700, margin: "0 0 10px", letterSpacing: "1px" }}>
-        填寫資料
-      </h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="姓名"
-          style={{
-            padding: "14px 16px", borderRadius: "10px", border: "1px solid #333",
-            background: "#1A1A1A", color: "#fff", fontSize: "15px",
-            fontFamily: "'Noto Sans TC', sans-serif", outline: "none",
-          }}
-        />
-        <input value={phone} onChange={e => {
-            const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-            setPhone(val);
-            setPhoneError("");
-          }} placeholder="手機號碼（09 開頭 10 碼）" type="tel" inputMode="numeric"
-          style={{
-            padding: "14px 16px", borderRadius: "10px",
-            border: `1px solid ${phoneError ? "#ff4444" : "#333"}`,
-            background: "#1A1A1A", color: "#fff", fontSize: "15px",
-            fontFamily: "'Noto Sans TC', sans-serif", outline: "none",
-            letterSpacing: "1px",
-          }}
-        />
-        {phoneError && <div style={{ color: "#ff4444", fontSize: "12px", marginTop: "-4px" }}>{phoneError}</div>}
-        <input value={referrer} onChange={e => setReferrer(e.target.value)} placeholder="推薦人姓名（選填）"
-          style={{
-            padding: "14px 16px", borderRadius: "10px", border: "1px solid #333",
-            background: "#1A1A1A", color: "#fff", fontSize: "15px",
-            fontFamily: "'Noto Sans TC', sans-serif", outline: "none",
-          }}
-        />
-        <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="備註（選填，例如：取貨時間偏好）"
-          rows={2}
-          style={{
-            padding: "14px 16px", borderRadius: "10px", border: "1px solid #333",
-            background: "#1A1A1A", color: "#fff", fontSize: "14px",
-            fontFamily: "'Noto Sans TC', sans-serif", outline: "none",
-            resize: "none",
-          }}
-        />
-      </div>
+```
+// Background
+const bg = ctx.createLinearGradient(0, 0, 0, h);
+bg.addColorStop(0, "#1A0A10");
+bg.addColorStop(0.3, "#0D0D0D");
+bg.addColorStop(1, "#0D0D0D");
+ctx.fillStyle = bg;
+ctx.fillRect(0, 0, w, h);
 
-      {/* Submit */}
-      {(() => {
-        const canSubmit = isValid8 && name.trim() && isPhoneValid;
-        return (
-          <button onClick={handleSubmit} style={{
-            width: "100%", padding: "16px", border: "none", borderRadius: "12px",
-            background: canSubmit
-              ? "linear-gradient(135deg, #C41E3A, #8B0023)"
-              : "#222",
-            color: canSubmit ? "#FFD700" : "#555",
-            fontSize: "16px", fontWeight: 700,
-            cursor: canSubmit ? "pointer" : "default",
-            fontFamily: "'Noto Sans TC', sans-serif",
-            transition: "all 0.2s",
-            opacity: canSubmit ? 1 : 0.6,
-          }}>
-            {cartTotal === 0 ? "確認預購" : !isValid8 ? `還差 ${8 - (cartTotal % 8)} 支湊滿 ${Math.ceil(cartTotal / 8) * 8} 支` : `確認預購（${cartPacks}組 $${cartAmount}）`}
-          </button>
-        );
-      })()}
-    </div>
-  );
+// Top accent bar
+const accent = ctx.createLinearGradient(0, 0, w, 0);
+accent.addColorStop(0, "#8B0023");
+accent.addColorStop(0.5, "#C41E3A");
+accent.addColorStop(1, "#8B0023");
+ctx.fillStyle = accent;
+ctx.fillRect(0, 0, w, 6);
+
+// Gold decorative line
+ctx.strokeStyle = "#FFD70040";
+ctx.lineWidth = 0.5;
+ctx.beginPath();
+ctx.moveTo(30, 50);
+ctx.lineTo(w - 30, 50);
+ctx.stroke();
+
+// Brand
+ctx.fillStyle = "#FFD70099";
+ctx.font = "500 10px 'Noto Sans TC', sans-serif";
+ctx.textAlign = "center";
+ctx.letterSpacing = "4px";
+ctx.fillText("H Ä A G E N - D A Z S", w / 2, 36);
+
+// Title
+ctx.fillStyle = "#FFD700";
+ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
+ctx.fillText("雪糕買四送四 預購憑證", w / 2, 76);
+
+// Decorative line
+ctx.strokeStyle = "#FFD70040";
+ctx.beginPath();
+ctx.moveTo(30, 90);
+ctx.lineTo(w - 30, 90);
+ctx.stroke();
+
+// Status badge
+ctx.fillStyle = "#28a74530";
+roundRect(ctx, w / 2 - 60, 102, 120, 28, 14);
+ctx.fill();
+ctx.fillStyle = "#28a745";
+ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
+ctx.fillText("✓ 預購成功", w / 2, 121);
+
+let y = 156;
+
+// Order info card
+ctx.fillStyle = "#1A1A1A";
+const cardH = 80 + items.length * 36 + (hasNote ? 50 : 0);
+roundRect(ctx, 20, y - 10, w - 40, cardH, 12);
+ctx.fill();
+ctx.strokeStyle = "#333";
+ctx.lineWidth = 1;
+roundRect(ctx, 20, y - 10, w - 40, cardH, 12);
+ctx.stroke();
+
+ctx.textAlign = "left";
+
+// Order ID
+ctx.fillStyle = "#888";
+ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+ctx.fillText("訂單編號", 36, y + 8);
+ctx.fillStyle = "#FFD700";
+ctx.font = "bold 14px monospace";
+ctx.fillText("#" + success.orderNo, 36, y + 26);
+
+// Name & phone
+ctx.fillStyle = "#888";
+ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+ctx.textAlign = "right";
+ctx.fillText(success.time, w - 36, y + 8);
+ctx.fillStyle = "#fff";
+ctx.font = "500 14px 'Noto Sans TC', sans-serif";
+ctx.fillText(success.name + "  " + success.phone, w - 36, y + 26);
+
+// Divider
+y += 42;
+ctx.strokeStyle = "#33333380";
+ctx.beginPath();
+ctx.moveTo(36, y);
+ctx.lineTo(w - 36, y);
+ctx.stroke();
+y += 16;
+
+// Items
+items.forEach(([fid, qty]) => {
+  const fl = FLAVORS.find(f => f.id === fid);
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#eee";
+  ctx.font = "400 14px 'Noto Sans TC', sans-serif";
+  ctx.fillText(fl?.emoji + "  " + fl?.name, 36, y);
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#aaa";
+  ctx.fillText("× " + qty, w - 36, y);
+  y += 36;
+});
+
+// Referrer
+if (hasReferrer) {
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#888";
+  ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+  ctx.fillText("推薦人", 36, y);
+  ctx.fillStyle = "#ccc";
+  ctx.font = "400 13px 'Noto Sans TC', sans-serif";
+  ctx.fillText(success.referrer, 100, y);
+  y += 28;
 }
 
-// --- Admin View ---
-function AdminView({ stock, saveStock, orders, saveOrders, onLogout, loadData }) {
-  const [tab, setTab] = useState("orders");
+// Note
+if (hasNote) {
+  ctx.strokeStyle = "#33333380";
+  ctx.beginPath();
+  ctx.moveTo(36, y - 12);
+  ctx.lineTo(w - 36, y - 12);
+  ctx.stroke();
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#888";
+  ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+  ctx.fillText("備註", 36, y + 6);
+  ctx.fillStyle = "#ccc";
+  ctx.font = "400 13px 'Noto Sans TC', sans-serif";
+  ctx.fillText(success.note.slice(0, 40), 36, y + 24);
+  y += 46;
+}
 
-  // Auto-refresh every 15 seconds to sync with other devices
-  useEffect(() => {
-    const interval = setInterval(() => { loadData(); }, 15000);
-    return () => clearInterval(interval);
-  }, [loadData]);
-  const [editStock, setEditStock] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [editingNoteId, setEditingNoteId] = useState(null);
-  const [editingNoteText, setEditingNoteText] = useState("");
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [batchConfirmDelete, setBatchConfirmDelete] = useState(false);
-  const [batchImgSrc, setBatchImgSrc] = useState(null);
-  const batchCanvasRef = useRef(null);
+// Total bar
+y += 6;
+ctx.fillStyle = "#C41E3A18";
+roundRect(ctx, 20, y, w - 40, 48, 12);
+ctx.fill();
+ctx.textAlign = "left";
+ctx.fillStyle = "#FFD700";
+ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+ctx.fillText("合計", 36, y + 30);
+ctx.textAlign = "right";
+ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+ctx.fillText(success.total + " 支 ・ $" + success.amount, w - 36, y + 31);
 
-  const filteredOrders = orders.filter(o =>
-    o.name.includes(searchTerm) || o.phone.includes(searchTerm) || (o.orderNo || "").includes(searchTerm) || o.id.includes(searchTerm)
-  ).reverse();
+// Footer notice
+y += 70;
+ctx.textAlign = "center";
+ctx.fillStyle = "#FFD70080";
+ctx.font = "500 12px 'Noto Sans TC', sans-serif";
+ctx.fillText("📱 到貨後門市夥伴將通知您前來取貨", w / 2, y);
+ctx.fillStyle = "#666";
+ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+ctx.fillText("請出示此憑證畫面即可取貨", w / 2, y + 22);
 
-  const totalRevenue = orders.reduce((sum, o) => sum + o.amount, 0);
-  const totalUnits = orders.reduce((sum, o) => sum + o.total, 0);
+// Bottom accent
+ctx.fillStyle = accent;
+ctx.fillRect(0, h - 4, w, 4);
 
-  const toggleStatus = (orderId) => {
-    const newOrders = orders.map(o =>
-      o.id === orderId ? { ...o, status: o.status === "pending" ? "picked" : "pending" } : o
-    );
-    saveOrders(newOrders);
-  };
+// Convert to image data URL
+try {
+  setImgSrc(canvas.toDataURL("image/png"));
+} catch(e) { console.error("toDataURL error", e); }
+```
 
-  const deleteOrder = (orderId) => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return;
-    const newStock = { ...stock };
-    for (const [fid, qty] of Object.entries(order.items)) {
-      newStock[fid] = (newStock[fid] || 0) + qty;
-    }
-    const newOrders = orders.filter(o => o.id !== orderId);
-    setConfirmDeleteId(null);
-    saveStock(newStock);
-    saveOrders(newOrders);
-  };
+}, [success]);
 
-  const saveAdminNote = (orderId, noteText) => {
-    const newOrders = orders.map(o =>
-      o.id === orderId ? { ...o, adminNote: noteText.trim() } : o
-    );
-    saveOrders(newOrders);
-    setEditingNoteId(null);
-    setEditingNoteText("");
-  };
+useEffect(() => {
+if (success) {
+setImgSrc(null);
+setTimeout(generateImage, 150);
+}
+}, [success, generateImage]);
 
-  const handleStockSave = () => {
-    if (!editStock) return;
-    saveStock(editStock);
-    setEditStock(null);
-  };
+if (success) {
+return (
+<div style={{ padding: “24px 16px”, textAlign: “center” }}>
+<div style={{
+width: “72px”, height: “72px”, borderRadius: “50%”,
+background: “linear-gradient(135deg, #28a745, #20c997)”,
+display: “flex”, alignItems: “center”, justifyContent: “center”,
+margin: “0 auto 16px”, fontSize: “36px”,
+animation: “popIn 0.4s ease”,
+}}>✓</div>
+<style>{`@keyframes popIn { 0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }`}</style>
+<h2 style={{ color: “#FFD700”, fontSize: “20px”, fontWeight: 700, margin: “0 0 4px” }}>預購成功！</h2>
+<p style={{ color: “#aaa”, fontSize: “12px”, margin: “0 0 20px” }}>👆 長按下方圖片即可儲存到相簿</p>
 
-  const resetAll = () => {
-    saveStock(getInitialStock());
-    saveOrders([]);
-    setConfirmReset(false);
-  };
+```
+    {/* Hidden canvas for generation */}
+    <canvas ref={canvasRef} style={{ display: "none" }} />
 
-  // Export states
-  const [exportCopied, setExportCopied] = useState(false);
-  const [showExportPanel, setShowExportPanel] = useState(false);
-
-  // Generate TSV for clipboard (tab-separated, pastes perfectly into spreadsheets)
-  const generateTSV = () => {
-    const header = "訂單編號\t姓名\t電話\t推薦人\t口味明細\t數量\t金額\t時間\t狀態\t客人備註\t門市備註";
-    const rows = orders.map(o => {
-      const items = Object.entries(o.items).map(([fid, qty]) => {
-        const fl = FLAVORS.find(f => f.id === fid);
-        return `${fl?.name}×${qty}`;
-      }).join("；");
-      return `${o.orderNo || o.id}\t${o.name}\t${o.phone}\t${o.referrer || ""}\t${items}\t${o.total}\t${o.amount}\t${o.time}\t${o.status === "picked" ? "已取" : "未取"}\t${o.note || ""}\t${o.adminNote || ""}`;
-    }).join("\n");
-    return header + "\n" + rows;
-  };
-
-  const copyToClipboard = () => {
-    const tsv = generateTSV();
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(tsv).then(() => {
-          setExportCopied(true);
-          setTimeout(() => setExportCopied(false), 2500);
-        }).catch(() => fallbackCopy(tsv));
-      } else {
-        fallbackCopy(tsv);
-      }
-    } catch(e) {
-      fallbackCopy(tsv);
-    }
-  };
-
-  const fallbackCopy = (text) => {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.cssText = "position:fixed;opacity:0";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    try { document.execCommand("copy"); setExportCopied(true); setTimeout(() => setExportCopied(false), 2500); }
-    catch(e) { setShowExportPanel(true); }
-    document.body.removeChild(ta);
-  };
-
-  const openGoogleSheets = () => {
-    // Generate CSV content for Google Sheets URL import
-    const header = "訂單編號,姓名,電話,推薦人,口味明細,數量,金額,時間,狀態,客人備註,門市備註";
-    const rows = orders.map(o => {
-      const items = Object.entries(o.items).map(([fid, qty]) => {
-        const fl = FLAVORS.find(f => f.id === fid);
-        return `${fl?.name}×${qty}`;
-      }).join("；");
-      return [o.orderNo || o.id, o.name, o.phone, o.referrer || "", items, o.total, o.amount, o.time, o.status === "picked" ? "已取" : "未取", o.note || "", o.adminNote || ""].join(",");
-    }).join("%0A");
-    const csvContent = encodeURIComponent(header) + "%0A" + rows;
-    window.open(`https://docs.google.com/spreadsheets/create`, "_blank");
-  };
-
-  const toggleSelect = (id) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-  const selectAll = () => {
-    if (selectedIds.size === filteredOrders.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredOrders.map(o => o.id)));
-    }
-  };
-  const selectedOrders = orders.filter(o => selectedIds.has(o.id));
-
-  const batchDelete = () => {
-    const ids = new Set(selectedIds);
-    const newStock = { ...stock };
-    orders.forEach(o => {
-      if (ids.has(o.id)) {
-        Object.entries(o.items).forEach(([fid, qty]) => {
-          newStock[fid] = (newStock[fid] || 0) + qty;
-        });
-      }
-    });
-    const newOrders = orders.filter(o => !ids.has(o.id));
-    setSelectedIds(new Set());
-    setBatchConfirmDelete(false);
-    saveStock(newStock);
-    saveOrders(newOrders);
-  };
-
-  // Generate batch print image - matches customer receipt style
-  const generateBatchImage = () => {
-    const canvas = batchCanvasRef.current;
-    if (!canvas || selectedOrders.length === 0) return;
-    const dpr = 2;
-    const W = 390 * dpr;
-    const w = 390;
-
-    // Pre-calculate height per order
-    const orderHeights = selectedOrders.map(o => {
-      const itemCount = Object.keys(o.items).length;
-      let h = 90 + itemCount * 24 + 40; // header + items + total
-      if (o.note) h += 20;
-      if (o.adminNote) h += 20;
-      return h;
-    });
-    const HEADER_H = 60;
-    const GAP = 16;
-    const FOOTER_H = 40;
-    const totalH = HEADER_H + orderHeights.reduce((a, b) => a + b, 0) + (selectedOrders.length - 1) * GAP + FOOTER_H;
-
-    canvas.width = W;
-    canvas.height = totalH * dpr;
-    const ctx = canvas.getContext("2d");
-    ctx.scale(dpr, dpr);
-
-    // BG
-    ctx.fillStyle = "#0D0D0D";
-    ctx.fillRect(0, 0, w, totalH);
-
-    // Top accent
-    const accent = ctx.createLinearGradient(0, 0, w, 0);
-    accent.addColorStop(0, "#8B0023");
-    accent.addColorStop(0.5, "#C41E3A");
-    accent.addColorStop(1, "#8B0023");
-    ctx.fillStyle = accent;
-    ctx.fillRect(0, 0, w, 4);
-
-    // Header
-    ctx.fillStyle = "#FFD70099";
-    ctx.font = "500 10px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("H Ä A G E N - D A Z S  雪糕買四送四", w / 2, 26);
-    ctx.fillStyle = "#888";
-    ctx.font = "400 11px 'Noto Sans TC', sans-serif";
-    ctx.fillText(`共 ${selectedOrders.length} 筆訂單 ・ ${new Date().toLocaleDateString("zh-TW")}`, w / 2, 46);
-
-    let y = HEADER_H;
-
-    selectedOrders.forEach((o, idx) => {
-      const itemEntries = Object.entries(o.items);
-      const cardH = orderHeights[idx];
-
-      // Card bg
-      ctx.fillStyle = "#1A1A1A";
-      roundRect(ctx, 12, y, w - 24, cardH, 10);
-      ctx.fill();
-      ctx.strokeStyle = o.status === "picked" ? "#28a745" : "#333";
-      ctx.lineWidth = 1;
-      roundRect(ctx, 12, y, w - 24, cardH, 10);
-      ctx.stroke();
-
-      const cx = 28;
-      let cy = y + 20;
-
-      // Order number badge
-      ctx.fillStyle = "#C41E3A";
-      roundRect(ctx, cx - 2, cy - 11, 20, 16, 4);
-      ctx.fill();
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 10px 'Noto Sans TC', sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(String(idx + 1), cx + 8, cy);
-
-      // Name + phone - large and prominent
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#FFD700";
-      ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
-      ctx.fillText(o.name, cx + 26, cy);
-      ctx.fillStyle = "#ccc";
-      ctx.font = "400 14px 'Noto Sans TC', sans-serif";
-      const nameW = ctx.measureText(o.name).width;
-      ctx.fillText(o.phone, cx + 26 + nameW + 12, cy);
-
-      // Status
-      ctx.textAlign = "right";
-      ctx.fillStyle = o.status === "picked" ? "#28a745" : "#FFD700";
-      ctx.font = "500 11px 'Noto Sans TC', sans-serif";
-      ctx.fillText(o.status === "picked" ? "✓ 已取" : "⏳ 未取", w - 28, cy);
-
-      cy += 16;
-      // Order ID + time
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#666";
-      ctx.font = "400 10px monospace";
-      ctx.fillText("#" + (o.orderNo || o.id) + "  " + o.time, cx, cy);
-
-      // Divider
-      cy += 10;
-      ctx.strokeStyle = "#33333380";
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(w - 28, cy);
-      ctx.stroke();
-      cy += 14;
-
-      // Items - each on its own line with left name / right quantity
-      itemEntries.forEach(([fid, qty]) => {
-        const fl = FLAVORS.find(f => f.id === fid);
-        ctx.textAlign = "left";
-        ctx.fillStyle = "#eee";
-        ctx.font = "400 13px 'Noto Sans TC', sans-serif";
-        ctx.fillText((fl?.emoji || "") + "  " + (fl?.name || fid), cx, cy);
-        ctx.textAlign = "right";
-        ctx.fillStyle = "#FFD700";
-        ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-        ctx.fillText("× " + qty, w - 28, cy);
-        cy += 24;
-      });
-
-      // Notes
-      if (o.note) {
-        ctx.textAlign = "left";
-        ctx.fillStyle = "#aaa";
-        ctx.font = "400 10px 'Noto Sans TC', sans-serif";
-        ctx.fillText("📝 " + o.note.slice(0, 40), cx, cy);
-        cy += 20;
-      }
-      if (o.adminNote) {
-        ctx.textAlign = "left";
-        ctx.fillStyle = "#ff9f43";
-        ctx.font = "400 10px 'Noto Sans TC', sans-serif";
-        ctx.fillText("🏪 " + o.adminNote.slice(0, 40), cx, cy);
-        cy += 20;
-      }
-
-      // Total bar
-      ctx.fillStyle = "#C41E3A18";
-      roundRect(ctx, cx - 4, cy - 2, w - 48, 22, 6);
-      ctx.fill();
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#FFD700";
-      ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
-      ctx.fillText("合計", cx, cy + 12);
-      ctx.textAlign = "right";
-      ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
-      ctx.fillText(o.total + " 支 ・ $" + o.amount, w - 28, cy + 12);
-
-      y += cardH + GAP;
-    });
-
-    // Bottom accent
-    ctx.fillStyle = accent;
-    ctx.fillRect(0, totalH - 4, w, 4);
-
-    try {
-      setBatchImgSrc(canvas.toDataURL("image/png"));
-    } catch(e) { console.error(e); }
-  };
-
-  // Generate A4 pages with 4 labels each (2x2 grid)
-  const [labelImages, setLabelImages] = useState([]);
-  const labelCanvasRef = useRef(null);
-
-  const drawSingleLabel = (ctx, o, x, y, LW, LH) => {
-    const pad = 12;
-    const cx = x + pad;
-    const rEdge = x + LW - pad;
-    let cy = y + 18;
-
-    // Card border (cut line)
-    ctx.strokeStyle = "#ccc";
-    ctx.lineWidth = 0.5;
-    ctx.setLineDash([4, 4]);
-    ctx.strokeRect(x, y, LW, LH);
-    ctx.setLineDash([]);
-
-    // Top accent
-    ctx.fillStyle = "#8B0023";
-    ctx.fillRect(x + 1, y + 1, LW - 2, 3);
-
-    // Brand
-    ctx.fillStyle = "#999";
-    ctx.font = "500 7px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("HÄAGEN-DAZS", x + LW / 2, cy);
-    cy += 12;
-
-    ctx.fillStyle = "#8B0023";
-    ctx.font = "bold 11px 'Noto Sans TC', sans-serif";
-    ctx.fillText("雪糕買四送四 取貨單", x + LW / 2, cy);
-    cy += 6;
-
-    ctx.strokeStyle = "#8B0023";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(rEdge, cy);
-    ctx.stroke();
-    cy += 14;
-
-    // Name + phone
-    ctx.textAlign = "left";
-    ctx.fillStyle = "#000";
-    ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
-    ctx.fillText(o.name, cx, cy);
-    ctx.fillStyle = "#333";
-    ctx.font = "400 11px 'Noto Sans TC', sans-serif";
-    const nw = ctx.measureText(o.name).width;
-    ctx.fillText(o.phone, cx + nw + 8, cy);
-
-    cy += 14;
-    ctx.fillStyle = "#888";
-    ctx.font = "400 8px monospace";
-    ctx.fillText("#" + (o.orderNo || o.id) + "  " + o.time, cx, cy);
-    ctx.textAlign = "right";
-    ctx.fillStyle = o.status === "picked" ? "#155724" : "#856404";
-    ctx.font = "600 8px 'Noto Sans TC', sans-serif";
-    ctx.fillText(o.status === "picked" ? "✓ 已取" : "⏳ 未取", rEdge, cy);
-
-    cy += 8;
-    ctx.strokeStyle = "#ddd";
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(rEdge, cy);
-    ctx.stroke();
-    cy += 12;
-
-    // Items
-    ctx.textAlign = "left";
-    Object.entries(o.items).forEach(([fid, qty]) => {
-      const fl = FLAVORS.find(f => f.id === fid);
-      ctx.fillStyle = "#333";
-      ctx.font = "400 11px 'Noto Sans TC', sans-serif";
-      ctx.fillText((fl?.emoji || "") + " " + (fl?.name || fid), cx, cy);
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#8B0023";
-      ctx.font = "bold 11px 'Noto Sans TC', sans-serif";
-      ctx.fillText("× " + qty, rEdge, cy);
-      ctx.textAlign = "left";
-      cy += 20;
-    });
-
-    if (o.referrer) {
-      ctx.fillStyle = "#888";
-      ctx.font = "400 8px 'Noto Sans TC', sans-serif";
-      ctx.fillText("👤 推薦人：" + o.referrer, cx, cy);
-      cy += 14;
-    }
-    if (o.note) {
-      ctx.fillStyle = "#666";
-      ctx.font = "400 8px 'Noto Sans TC', sans-serif";
-      ctx.fillText("📝 " + o.note.slice(0, 30), cx, cy);
-      cy += 14;
-    }
-    if (o.adminNote) {
-      ctx.fillStyle = "#cc6600";
-      ctx.font = "400 8px 'Noto Sans TC', sans-serif";
-      ctx.fillText("🏪 " + o.adminNote.slice(0, 30), cx, cy);
-      cy += 14;
-    }
-
-    // Total bar pinned to bottom
-    const totalY = y + LH - 30;
-    ctx.fillStyle = "#f5f0eb";
-    roundRect(ctx, cx - 2, totalY, LW - pad * 2 + 4, 22, 4);
-    ctx.fill();
-    ctx.textAlign = "left";
-    ctx.fillStyle = "#666";
-    ctx.font = "400 9px 'Noto Sans TC', sans-serif";
-    ctx.fillText("合計", cx + 4, totalY + 15);
-    ctx.textAlign = "right";
-    ctx.fillStyle = "#8B0023";
-    ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    ctx.fillText(o.total + " 支 ・ $" + o.amount, rEdge - 2, totalY + 15);
-  };
-
-  const generatePrintLabels = () => {
-    if (selectedOrders.length === 0) return;
-    const canvas = labelCanvasRef.current;
-    if (!canvas) return;
-    const dpr = 2;
-    // A4 proportions: 210mm x 297mm ≈ 794 x 1123 px at 96dpi
-    const A4W = 794;
-    const A4H = 1123;
-    canvas.width = A4W * dpr;
-    canvas.height = A4H * dpr;
-    const ctx = canvas.getContext("2d");
-
-    const MARGIN = 18;
-    const GAP = 12;
-    const LW = (A4W - MARGIN * 2 - GAP) / 2;
-    const LH = (A4H - MARGIN * 2 - GAP) / 2;
-    const positions = [
-      [MARGIN, MARGIN],
-      [MARGIN + LW + GAP, MARGIN],
-      [MARGIN, MARGIN + LH + GAP],
-      [MARGIN + LW + GAP, MARGIN + LH + GAP],
-    ];
-
-    const imgs = [];
-    const totalPages = Math.ceil(selectedOrders.length / 4);
-
-    for (let page = 0; page < totalPages; page++) {
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(0, 0, A4W, A4H);
-
-      for (let i = 0; i < 4; i++) {
-        const orderIdx = page * 4 + i;
-        const [px, py] = positions[i];
-        if (orderIdx >= selectedOrders.length) {
-          ctx.strokeStyle = "#e8e8e8";
-          ctx.lineWidth = 0.5;
-          ctx.setLineDash([4, 4]);
-          ctx.strokeRect(px, py, LW, LH);
-          ctx.setLineDash([]);
-        } else {
-          drawSingleLabel(ctx, selectedOrders[orderIdx], px, py, LW, LH);
-        }
-      }
-
-      try {
-        imgs.push(canvas.toDataURL("image/jpeg", 0.95));
-      } catch(e) { console.error(e); }
-    }
-
-    setLabelImages(imgs);
-
-    // Build PDF using jspdf loaded from CDN
-    if (!window.jspdf) {
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-      script.onload = () => createPdf(imgs);
-      document.head.appendChild(script);
-    } else {
-      createPdf(imgs);
-    }
-  };
-
-  const [pdfUrl, setPdfUrl] = useState(null);
-
-  const createPdf = (imgs) => {
-    try {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      imgs.forEach((imgData, i) => {
-        if (i > 0) doc.addPage();
-        doc.addImage(imgData, "JPEG", 0, 0, 210, 297);
-      });
-      const blob = doc.output("blob");
-      const url = URL.createObjectURL(blob);
-      setPdfUrl(url);
-    } catch(e) {
-      console.error("PDF error", e);
-    }
-  };
-
-  return (
-    <div style={{ padding: "16px" }}>
-      {/* Stats Banner */}
+    {/* Visible image for long-press save */}
+    {imgSrc ? (
+      <img
+        src={imgSrc}
+        alt="預購憑證"
+        style={{
+          width: "100%", maxWidth: "390px", borderRadius: "12px",
+          border: "1px solid #333",
+        }}
+      />
+    ) : (
       <div style={{
-        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "16px",
+        width: "100%", maxWidth: "390px", height: "400px", margin: "0 auto",
+        background: "#1A1A1A", borderRadius: "12px", border: "1px solid #333",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: "#888", fontSize: "14px",
       }}>
-        {[
-          { label: "總訂單", value: orders.length, icon: "📋" },
-          { label: "總銷量", value: `${totalUnits}支`, icon: "🍦" },
-          { label: "總金額", value: `$${totalRevenue}`, icon: "💰" },
-        ].map((s, i) => (
-          <div key={i} style={{
-            background: "#1A1A1A", borderRadius: "10px", padding: "12px",
-            textAlign: "center", border: "1px solid #333",
-          }}>
-            <div style={{ fontSize: "18px", marginBottom: "2px" }}>{s.icon}</div>
-            <div style={{ color: "#00D4AA", fontSize: "16px", fontWeight: 700 }}>{s.value}</div>
-            <div style={{ color: "#888", fontSize: "11px" }}>{s.label}</div>
-          </div>
-        ))}
+        圖片生成中...
+      </div>
+    )}
+
+    <div style={{
+      marginTop: "12px", padding: "10px", borderRadius: "8px",
+      background: "#FFD70010", border: "1px solid #FFD70030",
+    }}>
+      <p style={{ color: "#FFD700", fontSize: "12px", margin: 0, fontWeight: 500 }}>
+        📱 手機：長按圖片 → 儲存圖片 / 加入照片
+      </p>
+      <p style={{ color: "#888", fontSize: "11px", margin: "4px 0 0" }}>
+        取貨時出示此圖片即可
+      </p>
+    </div>
+
+    <button onClick={() => { setSuccess(null); setImgSrc(null); }} style={{
+      marginTop: "16px", padding: "14px 40px", border: "none", borderRadius: "10px",
+      background: "#1A1A1A", border: "1px solid #333",
+      color: "#aaa", fontSize: "15px", fontWeight: 500, cursor: "pointer",
+      fontFamily: "'Noto Sans TC', sans-serif",
+    }}>
+      繼續預購
+    </button>
+  </div>
+);
+```
+
+}
+
+return (
+<div style={{ padding: “16px” }}>
+{/* Flavor Grid */}
+<h3 style={{ color: “#FFD700”, fontSize: “14px”, fontWeight: 700, margin: “0 0 12px”, letterSpacing: “1px” }}>
+選擇口味
+</h3>
+<div style={{ display: “grid”, gridTemplateColumns: “repeat(2, 1fr)”, gap: “10px”, marginBottom: “20px” }}>
+{FLAVORS.map((f) => {
+const remaining = (stock[f.id] || 0) - (cart[f.id] || 0);
+const soldOut = stock[f.id] <= 0;
+const inCart = cart[f.id] || 0;
+return (
+<div key={f.id} style={{
+background: soldOut ? “#1A1A1A” : “#1A1A1A”,
+borderRadius: “12px”, padding: “12px”,
+border: `1px solid ${inCart > 0 ? "#00D4AA" : "#333"}`,
+opacity: soldOut ? 0.4 : 1,
+transition: “all 0.2s”,
+position: “relative”,
+}}>
+{soldOut && (
+<div style={{
+position: “absolute”, top: “50%”, left: “50%”,
+transform: “translate(-50%, -50%) rotate(-20deg)”,
+color: “#ff4444”, fontSize: “16px”, fontWeight: 900,
+letterSpacing: “2px”, opacity: 0.8,
+}}>售完</div>
+)}
+<div style={{ display: “flex”, alignItems: “center”, gap: “6px”, marginBottom: “4px” }}>
+<span style={{ fontSize: “20px” }}>{f.emoji}</span>
+<span style={{ color: “#fff”, fontSize: “13px”, fontWeight: 500, lineHeight: “1.2” }}>{f.name}</span>
+</div>
+<div style={{ fontSize: “10px”, color: “#666”, marginBottom: “6px” }}>
+{f.sku} ・ 庫存 {stock[f.id]} 支
+</div>
+{!soldOut && (
+<div style={{ display: “flex”, alignItems: “center”, gap: “6px” }}>
+<button onClick={() => removeFromCart(f.id)} disabled={!inCart} style={{
+width: “32px”, height: “32px”, borderRadius: “8px”, border: “none”,
+background: inCart ? “#333” : “#222”, color: inCart ? “#fff” : “#555”,
+fontSize: “18px”, cursor: inCart ? “pointer” : “default”,
+fontFamily: “‘Noto Sans TC’, sans-serif”,
+}}>−</button>
+<span style={{
+color: “#00D4AA”, fontSize: “18px”, fontWeight: 700,
+minWidth: “28px”, textAlign: “center”,
+}}>{inCart}</span>
+<button onClick={() => addToCart(f.id)} disabled={remaining <= 0} style={{
+width: “32px”, height: “32px”, borderRadius: “8px”, border: “none”,
+background: remaining > 0 ? “#C41E3A” : “#222”,
+color: remaining > 0 ? “#fff” : “#555”,
+fontSize: “18px”, cursor: remaining > 0 ? “pointer” : “default”,
+fontFamily: “‘Noto Sans TC’, sans-serif”,
+}}>+</button>
+</div>
+)}
+</div>
+);
+})}
+</div>
+
+```
+  {/* Cart Summary */}
+  {cartTotal > 0 && (
+    <div style={{
+      background: "#1A1A1A", borderRadius: "12px", padding: "14px",
+      border: `1px solid ${isValid8 ? "#FFD700" : "#ff9f43"}`, marginBottom: "16px",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+        <span style={{ color: "#FFD700", fontSize: "14px", fontWeight: 700 }}>🛒 已選 {cartTotal} 支</span>
+        {isValid8 && <span style={{ color: "#FFD93D", fontSize: "18px", fontWeight: 900 }}>${cartAmount}</span>}
+      </div>
+      {isValid8 ? (
+        <div style={{ color: "#888", fontSize: "11px" }}>
+          共 {cartPacks} 組（每組 8 支 ${PRICE_8_PACK}）
+        </div>
+      ) : (
+        <div style={{
+          color: "#ff9f43", fontSize: "12px", fontWeight: 500,
+          display: "flex", alignItems: "center", gap: "4px",
+        }}>
+          ⚠️ 需湊滿 8 的倍數才能預購（還差 {8 - (cartTotal % 8)} 支）
+        </div>
+      )}
+    </div>
+  )}
+
+  {/* Customer Info */}
+  <h3 style={{ color: "#FFD700", fontSize: "14px", fontWeight: 700, margin: "0 0 10px", letterSpacing: "1px" }}>
+    填寫資料
+  </h3>
+  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+    <input value={name} onChange={e => setName(e.target.value)} placeholder="姓名"
+      style={{
+        padding: "14px 16px", borderRadius: "10px", border: "1px solid #333",
+        background: "#1A1A1A", color: "#fff", fontSize: "15px",
+        fontFamily: "'Noto Sans TC', sans-serif", outline: "none",
+      }}
+    />
+    <input value={phone} onChange={e => {
+        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+        setPhone(val);
+        setPhoneError("");
+      }} placeholder="手機號碼（09 開頭 10 碼）" type="tel" inputMode="numeric"
+      style={{
+        padding: "14px 16px", borderRadius: "10px",
+        border: `1px solid ${phoneError ? "#ff4444" : "#333"}`,
+        background: "#1A1A1A", color: "#fff", fontSize: "15px",
+        fontFamily: "'Noto Sans TC', sans-serif", outline: "none",
+        letterSpacing: "1px",
+      }}
+    />
+    {phoneError && <div style={{ color: "#ff4444", fontSize: "12px", marginTop: "-4px" }}>{phoneError}</div>}
+    <input value={referrer} onChange={e => setReferrer(e.target.value)} placeholder="推薦人姓名（選填）"
+      style={{
+        padding: "14px 16px", borderRadius: "10px", border: "1px solid #333",
+        background: "#1A1A1A", color: "#fff", fontSize: "15px",
+        fontFamily: "'Noto Sans TC', sans-serif", outline: "none",
+      }}
+    />
+    <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="備註（選填，例如：取貨時間偏好）"
+      rows={2}
+      style={{
+        padding: "14px 16px", borderRadius: "10px", border: "1px solid #333",
+        background: "#1A1A1A", color: "#fff", fontSize: "14px",
+        fontFamily: "'Noto Sans TC', sans-serif", outline: "none",
+        resize: "none",
+      }}
+    />
+  </div>
+
+  {/* Submit */}
+  {(() => {
+    const canSubmit = isValid8 && name.trim() && isPhoneValid && submitStatus === "idle";
+    const isSending = submitStatus === "sending";
+    const isError = submitStatus === "error";
+    return (
+      <div>
+        <button onClick={handleSubmit} style={{
+          width: "100%", padding: "16px", border: "none", borderRadius: "12px",
+          background: isSending ? "#444" : isError ? "#ff4444" : canSubmit
+            ? "linear-gradient(135deg, #00B4DC, #0088A8)"
+            : "#222",
+          color: isSending ? "#aaa" : isError ? "#fff" : canSubmit ? "#fff" : "#555",
+          fontSize: "16px", fontWeight: 700,
+          cursor: canSubmit ? "pointer" : "default",
+          fontFamily: "'Noto Sans TC', sans-serif",
+          transition: "all 0.2s",
+          opacity: canSubmit || isSending || isError ? 1 : 0.6,
+        }}>
+          {isSending ? "⏳ 提交中，請稍候..." : isError ? "❌ 提交失敗，請重試" : cartTotal === 0 ? "確認預購" : !isValid8 ? `還差 ${8 - (cartTotal % 8)} 支湊滿 ${Math.ceil(cartTotal / 8) * 8} 支` : `確認預購（${cartPacks}組 $${cartAmount}）`}
+        </button>
+        {isError && (
+          <p style={{ color: "#ff6b6b", fontSize: "12px", textAlign: "center", marginTop: "8px" }}>
+            網路可能不穩，請確認網路連線後再試一次
+          </p>
+        )}
+      </div>
+    );
+  })()}
+</div>
+```
+
+);
+}
+
+// — Admin View —
+function AdminView({ stock, saveStock, orders, saveOrders, onLogout, loadData }) {
+const [tab, setTab] = useState(“orders”);
+
+// Auto-refresh every 15 seconds to sync with other devices
+useEffect(() => {
+const interval = setInterval(() => { loadData(); }, 15000);
+return () => clearInterval(interval);
+}, [loadData]);
+const [editStock, setEditStock] = useState(null);
+const [searchTerm, setSearchTerm] = useState(””);
+const [editingNoteId, setEditingNoteId] = useState(null);
+const [editingNoteText, setEditingNoteText] = useState(””);
+const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+const [confirmReset, setConfirmReset] = useState(false);
+const [selectedIds, setSelectedIds] = useState(new Set());
+const [batchConfirmDelete, setBatchConfirmDelete] = useState(false);
+const [batchImgSrc, setBatchImgSrc] = useState(null);
+const batchCanvasRef = useRef(null);
+
+const filteredOrders = orders.filter(o =>
+o.name.includes(searchTerm) || o.phone.includes(searchTerm) || (o.orderNo || “”).includes(searchTerm) || o.id.includes(searchTerm)
+).reverse();
+
+const totalRevenue = orders.reduce((sum, o) => sum + o.amount, 0);
+const totalUnits = orders.reduce((sum, o) => sum + o.total, 0);
+
+const toggleStatus = (orderId) => {
+const newOrders = orders.map(o =>
+o.id === orderId ? { …o, status: o.status === “pending” ? “picked” : “pending” } : o
+);
+saveOrders(newOrders);
+};
+
+const deleteOrder = (orderId) => {
+const order = orders.find(o => o.id === orderId);
+if (!order) return;
+const newStock = { …stock };
+for (const [fid, qty] of Object.entries(order.items)) {
+newStock[fid] = (newStock[fid] || 0) + qty;
+}
+const newOrders = orders.filter(o => o.id !== orderId);
+setConfirmDeleteId(null);
+saveStock(newStock);
+saveOrders(newOrders);
+};
+
+const saveAdminNote = (orderId, noteText) => {
+const newOrders = orders.map(o =>
+o.id === orderId ? { …o, adminNote: noteText.trim() } : o
+);
+saveOrders(newOrders);
+setEditingNoteId(null);
+setEditingNoteText(””);
+};
+
+const handleStockSave = () => {
+if (!editStock) return;
+saveStock(editStock);
+setEditStock(null);
+};
+
+const resetAll = () => {
+saveStock(getInitialStock());
+saveOrders([]);
+setConfirmReset(false);
+};
+
+// Export states
+const [exportCopied, setExportCopied] = useState(false);
+const [showExportPanel, setShowExportPanel] = useState(false);
+
+// Generate TSV for clipboard (tab-separated, pastes perfectly into spreadsheets)
+const generateTSV = () => {
+const header = “訂單編號\t姓名\t電話\t推薦人\t口味明細\t數量\t金額\t時間\t狀態\t客人備註\t門市備註”;
+const rows = orders.map(o => {
+const items = Object.entries(o.items).map(([fid, qty]) => {
+const fl = FLAVORS.find(f => f.id === fid);
+return `${fl?.name}×${qty}`;
+}).join(”；”);
+return `${o.orderNo || o.id}\t${o.name}\t${o.phone}\t${o.referrer || ""}\t${items}\t${o.total}\t${o.amount}\t${o.time}\t${o.status === "picked" ? "已取" : "未取"}\t${o.note || ""}\t${o.adminNote || ""}`;
+}).join(”\n”);
+return header + “\n” + rows;
+};
+
+const copyToClipboard = () => {
+const tsv = generateTSV();
+try {
+if (navigator.clipboard && navigator.clipboard.writeText) {
+navigator.clipboard.writeText(tsv).then(() => {
+setExportCopied(true);
+setTimeout(() => setExportCopied(false), 2500);
+}).catch(() => fallbackCopy(tsv));
+} else {
+fallbackCopy(tsv);
+}
+} catch(e) {
+fallbackCopy(tsv);
+}
+};
+
+const fallbackCopy = (text) => {
+const ta = document.createElement(“textarea”);
+ta.value = text;
+ta.style.cssText = “position:fixed;opacity:0”;
+document.body.appendChild(ta);
+ta.focus();
+ta.select();
+try { document.execCommand(“copy”); setExportCopied(true); setTimeout(() => setExportCopied(false), 2500); }
+catch(e) { setShowExportPanel(true); }
+document.body.removeChild(ta);
+};
+
+const openGoogleSheets = () => {
+// Generate CSV content for Google Sheets URL import
+const header = “訂單編號,姓名,電話,推薦人,口味明細,數量,金額,時間,狀態,客人備註,門市備註”;
+const rows = orders.map(o => {
+const items = Object.entries(o.items).map(([fid, qty]) => {
+const fl = FLAVORS.find(f => f.id === fid);
+return `${fl?.name}×${qty}`;
+}).join(”；”);
+return [o.orderNo || o.id, o.name, o.phone, o.referrer || “”, items, o.total, o.amount, o.time, o.status === “picked” ? “已取” : “未取”, o.note || “”, o.adminNote || “”].join(”,”);
+}).join(”%0A”);
+const csvContent = encodeURIComponent(header) + “%0A” + rows;
+window.open(`https://docs.google.com/spreadsheets/create`, “_blank”);
+};
+
+const toggleSelect = (id) => {
+setSelectedIds(prev => {
+const next = new Set(prev);
+if (next.has(id)) next.delete(id); else next.add(id);
+return next;
+});
+};
+const selectAll = () => {
+if (selectedIds.size === filteredOrders.length) {
+setSelectedIds(new Set());
+} else {
+setSelectedIds(new Set(filteredOrders.map(o => o.id)));
+}
+};
+const selectedOrders = orders.filter(o => selectedIds.has(o.id));
+
+const batchDelete = () => {
+const ids = new Set(selectedIds);
+const newStock = { …stock };
+orders.forEach(o => {
+if (ids.has(o.id)) {
+Object.entries(o.items).forEach(([fid, qty]) => {
+newStock[fid] = (newStock[fid] || 0) + qty;
+});
+}
+});
+const newOrders = orders.filter(o => !ids.has(o.id));
+setSelectedIds(new Set());
+setBatchConfirmDelete(false);
+saveStock(newStock);
+saveOrders(newOrders);
+};
+
+// Generate batch print image - matches customer receipt style
+const generateBatchImage = () => {
+const canvas = batchCanvasRef.current;
+if (!canvas || selectedOrders.length === 0) return;
+const dpr = 2;
+const W = 390 * dpr;
+const w = 390;
+
+```
+// Pre-calculate height per order
+const orderHeights = selectedOrders.map(o => {
+  const itemCount = Object.keys(o.items).length;
+  let h = 90 + itemCount * 24 + 40; // header + items + total
+  if (o.note) h += 20;
+  if (o.adminNote) h += 20;
+  return h;
+});
+const HEADER_H = 60;
+const GAP = 16;
+const FOOTER_H = 40;
+const totalH = HEADER_H + orderHeights.reduce((a, b) => a + b, 0) + (selectedOrders.length - 1) * GAP + FOOTER_H;
+
+canvas.width = W;
+canvas.height = totalH * dpr;
+const ctx = canvas.getContext("2d");
+ctx.scale(dpr, dpr);
+
+// BG
+ctx.fillStyle = "#0D0D0D";
+ctx.fillRect(0, 0, w, totalH);
+
+// Top accent
+const accent = ctx.createLinearGradient(0, 0, w, 0);
+accent.addColorStop(0, "#8B0023");
+accent.addColorStop(0.5, "#C41E3A");
+accent.addColorStop(1, "#8B0023");
+ctx.fillStyle = accent;
+ctx.fillRect(0, 0, w, 4);
+
+// Header
+ctx.fillStyle = "#FFD70099";
+ctx.font = "500 10px 'Noto Sans TC', sans-serif";
+ctx.textAlign = "center";
+ctx.fillText("H Ä A G E N - D A Z S  雪糕買四送四", w / 2, 26);
+ctx.fillStyle = "#888";
+ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+ctx.fillText(`共 ${selectedOrders.length} 筆訂單 ・ ${new Date().toLocaleDateString("zh-TW")}`, w / 2, 46);
+
+let y = HEADER_H;
+
+selectedOrders.forEach((o, idx) => {
+  const itemEntries = Object.entries(o.items);
+  const cardH = orderHeights[idx];
+
+  // Card bg
+  ctx.fillStyle = "#1A1A1A";
+  roundRect(ctx, 12, y, w - 24, cardH, 10);
+  ctx.fill();
+  ctx.strokeStyle = o.status === "picked" ? "#28a745" : "#333";
+  ctx.lineWidth = 1;
+  roundRect(ctx, 12, y, w - 24, cardH, 10);
+  ctx.stroke();
+
+  const cx = 28;
+  let cy = y + 20;
+
+  // Order number badge
+  ctx.fillStyle = "#C41E3A";
+  roundRect(ctx, cx - 2, cy - 11, 20, 16, 4);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 10px 'Noto Sans TC', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(String(idx + 1), cx + 8, cy);
+
+  // Name + phone - large and prominent
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#FFD700";
+  ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+  ctx.fillText(o.name, cx + 26, cy);
+  ctx.fillStyle = "#ccc";
+  ctx.font = "400 14px 'Noto Sans TC', sans-serif";
+  const nameW = ctx.measureText(o.name).width;
+  ctx.fillText(o.phone, cx + 26 + nameW + 12, cy);
+
+  // Status
+  ctx.textAlign = "right";
+  ctx.fillStyle = o.status === "picked" ? "#28a745" : "#FFD700";
+  ctx.font = "500 11px 'Noto Sans TC', sans-serif";
+  ctx.fillText(o.status === "picked" ? "✓ 已取" : "⏳ 未取", w - 28, cy);
+
+  cy += 16;
+  // Order ID + time
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#666";
+  ctx.font = "400 10px monospace";
+  ctx.fillText("#" + (o.orderNo || o.id) + "  " + o.time, cx, cy);
+
+  // Divider
+  cy += 10;
+  ctx.strokeStyle = "#33333380";
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(w - 28, cy);
+  ctx.stroke();
+  cy += 14;
+
+  // Items - each on its own line with left name / right quantity
+  itemEntries.forEach(([fid, qty]) => {
+    const fl = FLAVORS.find(f => f.id === fid);
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#eee";
+    ctx.font = "400 13px 'Noto Sans TC', sans-serif";
+    ctx.fillText((fl?.emoji || "") + "  " + (fl?.name || fid), cx, cy);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#FFD700";
+    ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
+    ctx.fillText("× " + qty, w - 28, cy);
+    cy += 24;
+  });
+
+  // Notes
+  if (o.note) {
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#aaa";
+    ctx.font = "400 10px 'Noto Sans TC', sans-serif";
+    ctx.fillText("📝 " + o.note.slice(0, 40), cx, cy);
+    cy += 20;
+  }
+  if (o.adminNote) {
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#ff9f43";
+    ctx.font = "400 10px 'Noto Sans TC', sans-serif";
+    ctx.fillText("🏪 " + o.adminNote.slice(0, 40), cx, cy);
+    cy += 20;
+  }
+
+  // Total bar
+  ctx.fillStyle = "#C41E3A18";
+  roundRect(ctx, cx - 4, cy - 2, w - 48, 22, 6);
+  ctx.fill();
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#FFD700";
+  ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
+  ctx.fillText("合計", cx, cy + 12);
+  ctx.textAlign = "right";
+  ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
+  ctx.fillText(o.total + " 支 ・ $" + o.amount, w - 28, cy + 12);
+
+  y += cardH + GAP;
+});
+
+// Bottom accent
+ctx.fillStyle = accent;
+ctx.fillRect(0, totalH - 4, w, 4);
+
+try {
+  setBatchImgSrc(canvas.toDataURL("image/png"));
+} catch(e) { console.error(e); }
+```
+
+};
+
+// Generate A4 pages with 4 labels each (2x2 grid)
+const [labelImages, setLabelImages] = useState([]);
+const labelCanvasRef = useRef(null);
+
+const drawSingleLabel = (ctx, o, x, y, LW, LH) => {
+const pad = 12;
+const cx = x + pad;
+const rEdge = x + LW - pad;
+let cy = y + 18;
+
+```
+// Card border (cut line)
+ctx.strokeStyle = "#ccc";
+ctx.lineWidth = 0.5;
+ctx.setLineDash([4, 4]);
+ctx.strokeRect(x, y, LW, LH);
+ctx.setLineDash([]);
+
+// Top accent
+ctx.fillStyle = "#8B0023";
+ctx.fillRect(x + 1, y + 1, LW - 2, 3);
+
+// Brand
+ctx.fillStyle = "#999";
+ctx.font = "500 7px 'Noto Sans TC', sans-serif";
+ctx.textAlign = "center";
+ctx.fillText("HÄAGEN-DAZS", x + LW / 2, cy);
+cy += 12;
+
+ctx.fillStyle = "#8B0023";
+ctx.font = "bold 11px 'Noto Sans TC', sans-serif";
+ctx.fillText("雪糕買四送四 取貨單", x + LW / 2, cy);
+cy += 6;
+
+ctx.strokeStyle = "#8B0023";
+ctx.lineWidth = 1;
+ctx.setLineDash([]);
+ctx.beginPath();
+ctx.moveTo(cx, cy);
+ctx.lineTo(rEdge, cy);
+ctx.stroke();
+cy += 14;
+
+// Name + phone
+ctx.textAlign = "left";
+ctx.fillStyle = "#000";
+ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+ctx.fillText(o.name, cx, cy);
+ctx.fillStyle = "#333";
+ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+const nw = ctx.measureText(o.name).width;
+ctx.fillText(o.phone, cx + nw + 8, cy);
+
+cy += 14;
+ctx.fillStyle = "#888";
+ctx.font = "400 8px monospace";
+ctx.fillText("#" + (o.orderNo || o.id) + "  " + o.time, cx, cy);
+ctx.textAlign = "right";
+ctx.fillStyle = o.status === "picked" ? "#155724" : "#856404";
+ctx.font = "600 8px 'Noto Sans TC', sans-serif";
+ctx.fillText(o.status === "picked" ? "✓ 已取" : "⏳ 未取", rEdge, cy);
+
+cy += 8;
+ctx.strokeStyle = "#ddd";
+ctx.lineWidth = 0.5;
+ctx.beginPath();
+ctx.moveTo(cx, cy);
+ctx.lineTo(rEdge, cy);
+ctx.stroke();
+cy += 12;
+
+// Items
+ctx.textAlign = "left";
+Object.entries(o.items).forEach(([fid, qty]) => {
+  const fl = FLAVORS.find(f => f.id === fid);
+  ctx.fillStyle = "#333";
+  ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+  ctx.fillText((fl?.emoji || "") + " " + (fl?.name || fid), cx, cy);
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#8B0023";
+  ctx.font = "bold 11px 'Noto Sans TC', sans-serif";
+  ctx.fillText("× " + qty, rEdge, cy);
+  ctx.textAlign = "left";
+  cy += 20;
+});
+
+if (o.referrer) {
+  ctx.fillStyle = "#888";
+  ctx.font = "400 8px 'Noto Sans TC', sans-serif";
+  ctx.fillText("👤 推薦人：" + o.referrer, cx, cy);
+  cy += 14;
+}
+if (o.note) {
+  ctx.fillStyle = "#666";
+  ctx.font = "400 8px 'Noto Sans TC', sans-serif";
+  ctx.fillText("📝 " + o.note.slice(0, 30), cx, cy);
+  cy += 14;
+}
+if (o.adminNote) {
+  ctx.fillStyle = "#cc6600";
+  ctx.font = "400 8px 'Noto Sans TC', sans-serif";
+  ctx.fillText("🏪 " + o.adminNote.slice(0, 30), cx, cy);
+  cy += 14;
+}
+
+// Total bar pinned to bottom
+const totalY = y + LH - 30;
+ctx.fillStyle = "#f5f0eb";
+roundRect(ctx, cx - 2, totalY, LW - pad * 2 + 4, 22, 4);
+ctx.fill();
+ctx.textAlign = "left";
+ctx.fillStyle = "#666";
+ctx.font = "400 9px 'Noto Sans TC', sans-serif";
+ctx.fillText("合計", cx + 4, totalY + 15);
+ctx.textAlign = "right";
+ctx.fillStyle = "#8B0023";
+ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
+ctx.fillText(o.total + " 支 ・ $" + o.amount, rEdge - 2, totalY + 15);
+```
+
+};
+
+const generatePrintLabels = () => {
+if (selectedOrders.length === 0) return;
+const canvas = labelCanvasRef.current;
+if (!canvas) return;
+const dpr = 2;
+// A4 proportions: 210mm x 297mm ≈ 794 x 1123 px at 96dpi
+const A4W = 794;
+const A4H = 1123;
+canvas.width = A4W * dpr;
+canvas.height = A4H * dpr;
+const ctx = canvas.getContext(“2d”);
+
+```
+const MARGIN = 18;
+const GAP = 12;
+const LW = (A4W - MARGIN * 2 - GAP) / 2;
+const LH = (A4H - MARGIN * 2 - GAP) / 2;
+const positions = [
+  [MARGIN, MARGIN],
+  [MARGIN + LW + GAP, MARGIN],
+  [MARGIN, MARGIN + LH + GAP],
+  [MARGIN + LW + GAP, MARGIN + LH + GAP],
+];
+
+const imgs = [];
+const totalPages = Math.ceil(selectedOrders.length / 4);
+
+for (let page = 0; page < totalPages; page++) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, A4W, A4H);
+
+  for (let i = 0; i < 4; i++) {
+    const orderIdx = page * 4 + i;
+    const [px, py] = positions[i];
+    if (orderIdx >= selectedOrders.length) {
+      ctx.strokeStyle = "#e8e8e8";
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(px, py, LW, LH);
+      ctx.setLineDash([]);
+    } else {
+      drawSingleLabel(ctx, selectedOrders[orderIdx], px, py, LW, LH);
+    }
+  }
+
+  try {
+    imgs.push(canvas.toDataURL("image/jpeg", 0.95));
+  } catch(e) { console.error(e); }
+}
+
+setLabelImages(imgs);
+
+// Build PDF using jspdf loaded from CDN
+if (!window.jspdf) {
+  const script = document.createElement("script");
+  script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+  script.onload = () => createPdf(imgs);
+  document.head.appendChild(script);
+} else {
+  createPdf(imgs);
+}
+```
+
+};
+
+const [pdfUrl, setPdfUrl] = useState(null);
+
+const createPdf = (imgs) => {
+try {
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF({ orientation: “portrait”, unit: “mm”, format: “a4” });
+imgs.forEach((imgData, i) => {
+if (i > 0) doc.addPage();
+doc.addImage(imgData, “JPEG”, 0, 0, 210, 297);
+});
+const blob = doc.output(“blob”);
+const url = URL.createObjectURL(blob);
+setPdfUrl(url);
+} catch(e) {
+console.error(“PDF error”, e);
+}
+};
+
+return (
+<div style={{ padding: “16px” }}>
+{/* Stats Banner */}
+<div style={{
+display: “grid”, gridTemplateColumns: “repeat(3, 1fr)”, gap: “8px”, marginBottom: “16px”,
+}}>
+{[
+{ label: “總訂單”, value: orders.length, icon: “📋” },
+{ label: “總銷量”, value: `${totalUnits}支`, icon: “🍦” },
+{ label: “總金額”, value: `$${totalRevenue}`, icon: “💰” },
+].map((s, i) => (
+<div key={i} style={{
+background: “#1A1A1A”, borderRadius: “10px”, padding: “12px”,
+textAlign: “center”, border: “1px solid #333”,
+}}>
+<div style={{ fontSize: “18px”, marginBottom: “2px” }}>{s.icon}</div>
+<div style={{ color: “#00D4AA”, fontSize: “16px”, fontWeight: 700 }}>{s.value}</div>
+<div style={{ color: “#888”, fontSize: “11px” }}>{s.label}</div>
+</div>
+))}
+</div>
+
+```
+  {/* Admin Tabs */}
+  <div style={{ display: "flex", gap: "6px", marginBottom: "14px" }}>
+    {[
+      { key: "orders", label: "訂單" },
+      { key: "stock", label: "庫存" },
+    ].map(t => (
+      <button key={t.key} onClick={() => setTab(t.key)} style={{
+        flex: 1, padding: "10px", border: "none", borderRadius: "8px",
+        background: tab === t.key ? "#00B4DC" : "#1A1A1A",
+        color: tab === t.key ? "#fff" : "#888",
+        fontSize: "13px", fontWeight: tab === t.key ? 700 : 400,
+        cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+      }}>
+        {t.label}
+      </button>
+    ))}
+  </div>
+
+  {/* Orders Tab */}
+  {tab === "orders" && (
+    <div>
+      {/* Refresh + Search row */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+        <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+          placeholder="🔍 搜尋姓名、電話、訂單編號"
+          style={{
+            flex: 1, boxSizing: "border-box", padding: "12px 14px", borderRadius: "10px",
+            border: "1px solid #333", background: "#1A1A1A", color: "#fff",
+            fontSize: "13px", fontFamily: "'Noto Sans TC', sans-serif",
+            outline: "none",
+          }}
+        />
+        <button onClick={() => { loadData(); }} style={{
+          padding: "12px 14px", border: "none", borderRadius: "10px",
+          background: "#00B4DC", color: "#fff", fontSize: "14px",
+          cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+          whiteSpace: "nowrap", fontWeight: 700,
+        }}>🔄</button>
       </div>
 
-      {/* Admin Tabs */}
-      <div style={{ display: "flex", gap: "6px", marginBottom: "14px" }}>
-        {[
-          { key: "orders", label: "訂單" },
-          { key: "stock", label: "庫存" },
-        ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            flex: 1, padding: "10px", border: "none", borderRadius: "8px",
-            background: tab === t.key ? "#00B4DC" : "#1A1A1A",
-            color: tab === t.key ? "#fff" : "#888",
-            fontSize: "13px", fontWeight: tab === t.key ? 700 : 400,
-            cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+      {/* Select all + batch toolbar */}
+      {filteredOrders.length > 0 && (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginBottom: "10px", padding: "8px 4px",
+        }}>
+          <button onClick={selectAll} style={{
+            padding: "6px 12px", border: "1px solid #444", borderRadius: "6px",
+            background: selectedIds.size === filteredOrders.length ? "#00D4AA20" : "transparent",
+            color: selectedIds.size === filteredOrders.length ? "#00D4AA" : "#888",
+            fontSize: "12px", cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
           }}>
-            {t.label}
+            {selectedIds.size === filteredOrders.length ? "☑ 取消全選" : "☐ 全選"}
           </button>
-        ))}
-      </div>
-
-      {/* Orders Tab */}
-      {tab === "orders" && (
-        <div>
-          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-            placeholder="🔍 搜尋姓名、電話、訂單編號"
-            style={{
-              width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: "10px",
-              border: "1px solid #333", background: "#1A1A1A", color: "#fff",
-              fontSize: "13px", fontFamily: "'Noto Sans TC', sans-serif",
-              outline: "none", marginBottom: "10px",
-            }}
-          />
-
-          {/* Select all + batch toolbar */}
-          {filteredOrders.length > 0 && (
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: "10px", padding: "8px 4px",
-            }}>
-              <button onClick={selectAll} style={{
-                padding: "6px 12px", border: "1px solid #444", borderRadius: "6px",
-                background: selectedIds.size === filteredOrders.length ? "#00D4AA20" : "transparent",
-                color: selectedIds.size === filteredOrders.length ? "#00D4AA" : "#888",
-                fontSize: "12px", cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-              }}>
-                {selectedIds.size === filteredOrders.length ? "☑ 取消全選" : "☐ 全選"}
-              </button>
-              {selectedIds.size > 0 && (
-                <span style={{ color: "#00D4AA", fontSize: "12px", fontWeight: 600 }}>
-                  已選 {selectedIds.size} 筆
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Batch action bar */}
           {selectedIds.size > 0 && (
-            <div style={{
-              background: "#1A1A1A", borderRadius: "10px", padding: "10px",
-              border: "1px solid #00D4AA", marginBottom: "12px",
-              display: "flex", flexDirection: "column", gap: "6px",
-            }}>
-              <div style={{ display: "flex", gap: "6px" }}>
-                <button onClick={generatePrintLabels} style={{
-                  flex: 1, padding: "10px 8px", border: "none", borderRadius: "8px",
-                  background: "linear-gradient(135deg, #00B4DC, #0088A8)",
-                  color: "#fff", fontSize: "12px", fontWeight: 700,
-                  cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-                }}>📄 取貨標籤</button>
-                <button onClick={copyToClipboard} style={{
-                  flex: 1, padding: "10px 8px", border: "none", borderRadius: "8px",
-                  background: "#333", color: exportCopied ? "#28a745" : "#fff", fontSize: "12px",
-                  cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-                }}>{exportCopied ? "✓ 已複製" : "📋 複製資料"}</button>
-              </div>
-              <div style={{ display: "flex", gap: "6px" }}>
-                {batchConfirmDelete ? (
-                  <>
-                    <button onClick={batchDelete} style={{
-                      flex: 1, padding: "10px 8px", border: "none", borderRadius: "8px",
-                      background: "#ff4444", color: "#fff", fontSize: "12px", fontWeight: 700,
-                      cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-                    }}>確定刪除 {selectedIds.size} 筆</button>
-                    <button onClick={() => setBatchConfirmDelete(false)} style={{
-                      padding: "10px 12px", border: "none", borderRadius: "8px",
-                      background: "#333", color: "#aaa", fontSize: "12px",
-                      cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-                    }}>取消</button>
-                  </>
-                ) : (
-                  <button onClick={() => setBatchConfirmDelete(true)} style={{
-                    flex: 1, padding: "10px 8px", border: "none", borderRadius: "8px",
-                    background: "#ff444430", color: "#ff4444", fontSize: "12px",
-                    cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-                  }}>🗑 刪除已選</button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Batch image preview */}
-          <canvas ref={batchCanvasRef} style={{ display: "none" }} />
-          <canvas ref={labelCanvasRef} style={{ display: "none" }} />
-          {batchImgSrc && (
-            <div style={{
-              background: "#1A1A1A", borderRadius: "10px", padding: "12px",
-              border: "1px solid #00D4AA", marginBottom: "12px", textAlign: "center",
-            }}>
-              <div style={{ color: "#00D4AA", fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>
-                👆 長按圖片儲存，列印後貼在貨箱上核對
-              </div>
-              <img src={batchImgSrc} alt="取貨單" style={{
-                width: "100%", maxWidth: "390px", borderRadius: "8px", border: "1px solid #333",
-              }} />
-              <button onClick={() => setBatchImgSrc(null)} style={{
-                marginTop: "8px", padding: "6px 16px", border: "none", borderRadius: "6px",
-                background: "#333", color: "#aaa", fontSize: "12px",
-                cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-              }}>收起</button>
-            </div>
-          )}
-
-          {/* A4 Label pages */}
-          {(labelImages.length > 0 || pdfUrl) && (
-            <div style={{
-              background: "#1A1A1A", borderRadius: "10px", padding: "12px",
-              border: "1px solid #00B4DC", marginBottom: "12px", textAlign: "center",
-            }}>
-              {pdfUrl && (
-                <a href={pdfUrl} target="_blank" rel="noopener noreferrer" style={{
-                  display: "block", padding: "14px", borderRadius: "8px",
-                  background: "linear-gradient(135deg, #00B4DC, #0088A8)",
-                  color: "#fff", fontSize: "15px", fontWeight: 700,
-                  textDecoration: "none", marginBottom: "12px",
-                  fontFamily: "'Noto Sans TC', sans-serif",
-                }}>📄 開啟 PDF 取貨標籤</a>
-              )}
-              <div style={{ color: "#888", fontSize: "11px", marginBottom: "10px" }}>
-                點擊上方開啟 PDF → 列印 A4（每頁 4 張標籤，沿虛線裁切）
-              </div>
-              {labelImages.length > 0 && (
-                <details>
-                  <summary style={{ color: "#666", fontSize: "11px", cursor: "pointer", marginBottom: "8px" }}>
-                    預覽圖片（長按可存圖）
-                  </summary>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "center", marginTop: "8px" }}>
-                    {labelImages.map((src, i) => (
-                      <img key={i} src={src} alt={`A4 第 ${i + 1} 頁`} style={{
-                        width: "100%", maxWidth: "420px", borderRadius: "4px",
-                        border: "1px solid #444", boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-                      }} />
-                    ))}
-                  </div>
-                </details>
-              )}
-              <button onClick={() => { setLabelImages([]); setPdfUrl(null); }} style={{
-                marginTop: "10px", padding: "6px 16px", border: "none", borderRadius: "6px",
-                background: "#333", color: "#aaa", fontSize: "12px",
-                cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-              }}>收起</button>
-            </div>
-          )}
-
-          {filteredOrders.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#555", padding: "30px", fontSize: "14px" }}>
-              {orders.length === 0 ? "尚無訂單" : "查無結果"}
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {filteredOrders.map(o => (
-                <div key={o.id} style={{
-                  background: "#1A1A1A", borderRadius: "10px", padding: "12px",
-                  border: `1px solid ${selectedIds.has(o.id) ? "#00D4AA" : o.status === "picked" ? "#28a745" : "#333"}`,
-                  transition: "border 0.2s",
-                }}>
-                  {/* Top row with checkbox */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-                    <div onClick={() => toggleSelect(o.id)} style={{
-                      width: "22px", height: "22px", borderRadius: "4px", flexShrink: 0,
-                      border: `2px solid ${selectedIds.has(o.id) ? "#00D4AA" : "#555"}`,
-                      background: selectedIds.has(o.id) ? "#00D4AA" : "transparent",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", transition: "all 0.15s",
-                    }}>
-                      {selectedIds.has(o.id) && <span style={{ color: "#0D0D0D", fontSize: "14px", fontWeight: 900 }}>✓</span>}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <span style={{ color: "#fff", fontSize: "14px", fontWeight: 700 }}>{o.name}</span>
-                      <span style={{ color: "#888", fontSize: "12px", marginLeft: "8px" }}>{o.phone}</span>
-                    </div>
-                    <span style={{
-                      fontSize: "11px", padding: "3px 8px", borderRadius: "6px",
-                      background: o.status === "picked" ? "#28a74520" : "#00D4AA20",
-                      color: o.status === "picked" ? "#28a745" : "#00D4AA",
-                      fontWeight: 600,
-                    }}>
-                      {o.status === "picked" ? "✓ 已取" : "⏳ 未取"}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: "12px", color: "#888", marginBottom: "6px" }}>
-                    #{o.orderNo || o.id} ・ {o.time}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "#ccc", marginBottom: "8px" }}>
-                    {Object.entries(o.items).map(([fid, qty]) => {
-                      const fl = FLAVORS.find(f => f.id === fid);
-                      return `${fl?.emoji}${fl?.name}×${qty}`;
-                    }).join("  ")}
-                  </div>
-                  {o.referrer && (
-                    <div style={{
-                      fontSize: "12px", color: "#aaa", marginBottom: "6px",
-                    }}>
-                      👤 推薦人：{o.referrer}
-                    </div>
-                  )}
-                  {o.note && (
-                    <div style={{
-                      fontSize: "12px", color: "#aaa", marginBottom: "8px",
-                      padding: "6px 10px", background: "#ffffff08", borderRadius: "6px",
-                      borderLeft: "3px solid #00D4AA",
-                    }}>
-                      📝 客人備註：{o.note}
-                    </div>
-                  )}
-                  {/* Admin Note */}
-                  {editingNoteId === o.id ? (
-                    <div style={{ marginBottom: "8px", display: "flex", gap: "6px" }}>
-                      <input
-                        value={editingNoteText}
-                        onChange={e => setEditingNoteText(e.target.value)}
-                        placeholder="輸入門市備註..."
-                        autoFocus
-                        style={{
-                          flex: 1, padding: "8px 10px", borderRadius: "6px",
-                          border: "1px solid #00B4DC", background: "#0D0D0D",
-                          color: "#fff", fontSize: "12px", outline: "none",
-                          fontFamily: "'Noto Sans TC', sans-serif",
-                        }}
-                        onKeyDown={e => { if (e.key === "Enter") saveAdminNote(o.id, editingNoteText); }}
-                      />
-                      <button onClick={() => saveAdminNote(o.id, editingNoteText)} style={{
-                        padding: "8px 12px", border: "none", borderRadius: "6px",
-                        background: "#00B4DC", color: "#fff", fontSize: "12px",
-                        cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-                        whiteSpace: "nowrap",
-                      }}>儲存</button>
-                      <button onClick={() => { setEditingNoteId(null); setEditingNoteText(""); }} style={{
-                        padding: "8px 10px", border: "none", borderRadius: "6px",
-                        background: "#333", color: "#aaa", fontSize: "12px",
-                        cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-                      }}>✕</button>
-                    </div>
-                  ) : (
-                    <div style={{ marginBottom: "8px" }}>
-                      {o.adminNote ? (
-                        <div onClick={() => { setEditingNoteId(o.id); setEditingNoteText(o.adminNote || ""); }}
-                          style={{
-                            fontSize: "12px", color: "#ff9f43", padding: "6px 10px",
-                            background: "#ff9f4310", borderRadius: "6px",
-                            borderLeft: "3px solid #00B4DC", cursor: "pointer",
-                          }}>
-                          🏪 門市備註：{o.adminNote}
-                          <span style={{ color: "#666", fontSize: "10px", marginLeft: "6px" }}>點擊編輯</span>
-                        </div>
-                      ) : (
-                        <button onClick={() => { setEditingNoteId(o.id); setEditingNoteText(""); }}
-                          style={{
-                            padding: "5px 10px", border: "1px dashed #444", borderRadius: "6px",
-                            background: "transparent", color: "#666", fontSize: "11px",
-                            cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-                          }}>
-                          + 新增門市備註
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ color: "#00D4AA", fontSize: "14px", fontWeight: 700 }}>
-                      {o.total}支 ・ ${o.amount}
-                    </span>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => toggleStatus(o.id)} style={{
-                        padding: "6px 12px", border: "none", borderRadius: "6px",
-                        background: o.status === "picked" ? "#333" : "#28a745",
-                        color: "#fff", fontSize: "12px", cursor: "pointer",
-                        fontFamily: "'Noto Sans TC', sans-serif",
-                      }}>
-                        {o.status === "picked" ? "取消取貨" : "標記已取"}
-                      </button>
-                      {confirmDeleteId === o.id ? (
-                        <>
-                          <button onClick={() => deleteOrder(o.id)} style={{
-                            padding: "6px 12px", border: "none", borderRadius: "6px",
-                            background: "#ff4444", color: "#fff",
-                            fontSize: "12px", cursor: "pointer",
-                            fontFamily: "'Noto Sans TC', sans-serif",
-                          }}>確定刪除</button>
-                          <button onClick={() => setConfirmDeleteId(null)} style={{
-                            padding: "6px 10px", border: "none", borderRadius: "6px",
-                            background: "#333", color: "#aaa",
-                            fontSize: "12px", cursor: "pointer",
-                            fontFamily: "'Noto Sans TC', sans-serif",
-                          }}>取消</button>
-                        </>
-                      ) : (
-                        <button onClick={() => setConfirmDeleteId(o.id)}
-                          style={{
-                            padding: "6px 12px", border: "none", borderRadius: "6px",
-                            background: "#ff444430", color: "#ff4444",
-                            fontSize: "12px", cursor: "pointer",
-                            fontFamily: "'Noto Sans TC', sans-serif",
-                          }}>
-                          刪除
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <span style={{ color: "#00D4AA", fontSize: "12px", fontWeight: 600 }}>
+              已選 {selectedIds.size} 筆
+            </span>
           )}
         </div>
       )}
 
-      {/* Stock Tab */}
-      {tab === "stock" && (
-        <div>
-          {/* Quick fill when editing */}
-          {editStock && (
-            <div style={{ marginBottom: "12px" }}>
-              <div style={{ color: "#888", fontSize: "11px", marginBottom: "6px" }}>快速設定每個口味：</div>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {[10, 20, 30, 50].map(n => (
-                  <button key={n} onClick={() => {
-                    const filled = {};
-                    FLAVORS.forEach(f => { filled[f.id] = n; });
-                    setEditStock(filled);
-                  }} style={{
-                    padding: "6px 14px", border: "1px solid #444", borderRadius: "6px",
-                    background: "#1A1A1A", color: "#00D4AA", fontSize: "12px",
-                    cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-                  }}>每種 {n} 支</button>
-                ))}
-              </div>
-            </div>
-          )}
-          {/* Total summary */}
-          {editStock && (
-            <div style={{
-              background: "#00D4AA10", border: "1px solid #00D4AA30", borderRadius: "8px",
-              padding: "10px", marginBottom: "12px", textAlign: "center",
-            }}>
-              <span style={{ color: "#00D4AA", fontSize: "14px", fontWeight: 700 }}>
-                合計：{Object.values(editStock).reduce((a, b) => a + b, 0)} 支
-              </span>
-            </div>
-          )}
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {FLAVORS.map(f => {
-              const current = editStock ? editStock[f.id] : stock[f.id];
-              // Calculate sold for this flavor from orders
-              const soldForFlavor = orders.reduce((sum, o) => sum + (o.items[f.id] || 0), 0);
-              return (
-                <div key={f.id} style={{
-                  background: "#1A1A1A", borderRadius: "10px", padding: "12px",
-                  border: "1px solid #333", display: "flex", alignItems: "center", gap: "10px",
-                }}>
-                  <span style={{ fontSize: "24px" }}>{f.emoji}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: "#fff", fontSize: "13px", fontWeight: 500 }}>{f.name}</div>
-                    <div style={{ color: "#888", fontSize: "11px" }}>
-                      剩 {stock[f.id]} 支 ・ 已售 {soldForFlavor} 支
-                    </div>
-                    {/* Mini bar */}
-                    <div style={{ height: "3px", background: "#333", borderRadius: "2px", marginTop: "4px" }}>
-                      {(() => {
-                        const totalForFlavor = (stock[f.id] || 0) + soldForFlavor;
-                        return (
-                          <div style={{
-                            width: `${totalForFlavor > 0 ? (soldForFlavor / totalForFlavor) * 100 : 0}%`,
-                            height: "100%", background: stock[f.id] <= 0 && soldForFlavor > 0 ? "#ff4444" : "#00D4AA",
-                            borderRadius: "2px", transition: "width 0.3s",
-                          }} />
-                        );
-                      })()}
-                    </div>
-                  </div>
-                  {editStock ? (
-                    <input type="tel" inputMode="numeric" pattern="[0-9]*" value={current}
-                      onChange={e => {
-                        const val = e.target.value.replace(/\D/g, "");
-                        setEditStock(s => ({ ...s, [f.id]: val === "" ? 0 : parseInt(val) }));
-                      }}
-                      onFocus={e => e.target.select()}
-                      style={{
-                        width: "64px", padding: "8px", borderRadius: "6px",
-                        border: "1px solid #00D4AA", background: "#0D0D0D",
-                        color: "#00D4AA", fontSize: "16px", textAlign: "center",
-                        fontFamily: "'Noto Sans TC', sans-serif", outline: "none",
-                      }}
-                    />
-                  ) : (
-                    <span style={{ color: stock[f.id] <= 0 ? "#ff4444" : "#00D4AA", fontSize: "18px", fontWeight: 700, minWidth: "40px", textAlign: "right" }}>
-                      {current}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+      {/* Batch action bar */}
+      {selectedIds.size > 0 && (
+        <div style={{
+          background: "#1A1A1A", borderRadius: "10px", padding: "10px",
+          border: "1px solid #00D4AA", marginBottom: "12px",
+          display: "flex", flexDirection: "column", gap: "6px",
+        }}>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button onClick={generatePrintLabels} style={{
+              flex: 1, padding: "10px 8px", border: "none", borderRadius: "8px",
+              background: "linear-gradient(135deg, #00B4DC, #0088A8)",
+              color: "#fff", fontSize: "12px", fontWeight: 700,
+              cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+            }}>📄 取貨標籤</button>
+            <button onClick={copyToClipboard} style={{
+              flex: 1, padding: "10px 8px", border: "none", borderRadius: "8px",
+              background: "#333", color: exportCopied ? "#28a745" : "#fff", fontSize: "12px",
+              cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+            }}>{exportCopied ? "✓ 已複製" : "📋 複製資料"}</button>
           </div>
-          <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
-            {editStock ? (
+          <div style={{ display: "flex", gap: "6px" }}>
+            {batchConfirmDelete ? (
               <>
-                <button onClick={() => {
-                  if (!editStock) return;
-                  const s = { ...editStock };
-                  setEditStock(null);
-                  saveStock(s);
-                }} style={{
-                  flex: 1, padding: "12px", border: "none", borderRadius: "8px",
-                  background: "#28a745", color: "#fff", fontSize: "14px",
-                  fontWeight: 700, cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-                }}>儲存變更</button>
-                <button onClick={() => setEditStock(null)} style={{
-                  flex: 1, padding: "12px", border: "none", borderRadius: "8px",
-                  background: "#333", color: "#fff", fontSize: "14px",
+                <button onClick={batchDelete} style={{
+                  flex: 1, padding: "10px 8px", border: "none", borderRadius: "8px",
+                  background: "#ff4444", color: "#fff", fontSize: "12px", fontWeight: 700,
+                  cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+                }}>確定刪除 {selectedIds.size} 筆</button>
+                <button onClick={() => setBatchConfirmDelete(false)} style={{
+                  padding: "10px 12px", border: "none", borderRadius: "8px",
+                  background: "#333", color: "#aaa", fontSize: "12px",
                   cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
                 }}>取消</button>
               </>
             ) : (
-              <button onClick={() => setEditStock({ ...stock })} style={{
-                flex: 1, padding: "12px", border: "none", borderRadius: "8px",
-                background: "#00B4DC", color: "#fff", fontSize: "14px",
-                fontWeight: 700, cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-              }}>✏️ 編輯庫存</button>
+              <button onClick={() => setBatchConfirmDelete(true)} style={{
+                flex: 1, padding: "10px 8px", border: "none", borderRadius: "8px",
+                background: "#ff444430", color: "#ff4444", fontSize: "12px",
+                cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+              }}>🗑 刪除已選</button>
             )}
           </div>
         </div>
       )}
 
-      {/* Bottom Actions */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "20px" }}>
-        {/* Show raw data panel as fallback */}
-        {showExportPanel && (
-          <div style={{
-            background: "#1A1A1A", borderRadius: "10px", padding: "12px",
-            border: "1px solid #333",
-          }}>
-            <div style={{ color: "#888", fontSize: "11px", marginBottom: "6px" }}>
-              全選下方文字 → 複製 → 貼到 Google 試算表
-            </div>
-            <textarea
-              readOnly
-              value={generateTSV()}
-              onFocus={e => e.target.select()}
-              style={{
-                width: "100%", boxSizing: "border-box", minHeight: "120px",
-                padding: "10px", borderRadius: "6px", border: "1px solid #444",
-                background: "#0D0D0D", color: "#ccc", fontSize: "11px",
-                fontFamily: "monospace", resize: "vertical", outline: "none",
-              }}
-            />
-            <button onClick={() => setShowExportPanel(false)} style={{
-              marginTop: "8px", padding: "6px 12px", border: "none", borderRadius: "6px",
-              background: "#333", color: "#aaa", fontSize: "12px",
-              cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-            }}>收起</button>
+      {/* Batch image preview */}
+      <canvas ref={batchCanvasRef} style={{ display: "none" }} />
+      <canvas ref={labelCanvasRef} style={{ display: "none" }} />
+      {batchImgSrc && (
+        <div style={{
+          background: "#1A1A1A", borderRadius: "10px", padding: "12px",
+          border: "1px solid #00D4AA", marginBottom: "12px", textAlign: "center",
+        }}>
+          <div style={{ color: "#00D4AA", fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>
+            👆 長按圖片儲存，列印後貼在貨箱上核對
           </div>
-        )}
+          <img src={batchImgSrc} alt="取貨單" style={{
+            width: "100%", maxWidth: "390px", borderRadius: "8px", border: "1px solid #333",
+          }} />
+          <button onClick={() => setBatchImgSrc(null)} style={{
+            marginTop: "8px", padding: "6px 16px", border: "none", borderRadius: "6px",
+            background: "#333", color: "#aaa", fontSize: "12px",
+            cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+          }}>收起</button>
+        </div>
+      )}
 
-        <div style={{ display: "flex", gap: "8px" }}>
-          {confirmReset ? (
-            <>
-              <button onClick={resetAll} style={{
-                flex: 1, padding: "12px", border: "none", borderRadius: "8px",
-                background: "#ff4444", color: "#fff", fontSize: "13px",
-                cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif", fontWeight: 700,
-              }}>確定重置</button>
-              <button onClick={() => setConfirmReset(false)} style={{
-                flex: 1, padding: "12px", border: "1px solid #333", borderRadius: "8px",
-                background: "transparent", color: "#888", fontSize: "13px",
-                cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-              }}>取消</button>
-            </>
-          ) : (
-            <button onClick={() => setConfirmReset(true)} style={{
-              flex: 1, padding: "12px", border: "1px solid #ff444440", borderRadius: "8px",
-              background: "transparent", color: "#ff4444", fontSize: "13px",
-              cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-            }}>🗑 重置全部</button>
+      {/* A4 Label pages */}
+      {(labelImages.length > 0 || pdfUrl) && (
+        <div style={{
+          background: "#1A1A1A", borderRadius: "10px", padding: "12px",
+          border: "1px solid #00B4DC", marginBottom: "12px", textAlign: "center",
+        }}>
+          {pdfUrl && (
+            <a href={pdfUrl} target="_blank" rel="noopener noreferrer" style={{
+              display: "block", padding: "14px", borderRadius: "8px",
+              background: "linear-gradient(135deg, #00B4DC, #0088A8)",
+              color: "#fff", fontSize: "15px", fontWeight: 700,
+              textDecoration: "none", marginBottom: "12px",
+              fontFamily: "'Noto Sans TC', sans-serif",
+            }}>📄 開啟 PDF 取貨標籤</a>
           )}
-          <button onClick={onLogout} style={{
+          <div style={{ color: "#888", fontSize: "11px", marginBottom: "10px" }}>
+            點擊上方開啟 PDF → 列印 A4（每頁 4 張標籤，沿虛線裁切）
+          </div>
+          {labelImages.length > 0 && (
+            <details>
+              <summary style={{ color: "#666", fontSize: "11px", cursor: "pointer", marginBottom: "8px" }}>
+                預覽圖片（長按可存圖）
+              </summary>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "center", marginTop: "8px" }}>
+                {labelImages.map((src, i) => (
+                  <img key={i} src={src} alt={`A4 第 ${i + 1} 頁`} style={{
+                    width: "100%", maxWidth: "420px", borderRadius: "4px",
+                    border: "1px solid #444", boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                  }} />
+                ))}
+              </div>
+            </details>
+          )}
+          <button onClick={() => { setLabelImages([]); setPdfUrl(null); }} style={{
+            marginTop: "10px", padding: "6px 16px", border: "none", borderRadius: "6px",
+            background: "#333", color: "#aaa", fontSize: "12px",
+            cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+          }}>收起</button>
+        </div>
+      )}
+
+      {filteredOrders.length === 0 ? (
+        <div style={{ textAlign: "center", color: "#555", padding: "30px", fontSize: "14px" }}>
+          {orders.length === 0 ? "尚無訂單" : "查無結果"}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {filteredOrders.map(o => (
+            <div key={o.id} style={{
+              background: "#1A1A1A", borderRadius: "10px", padding: "12px",
+              border: `1px solid ${selectedIds.has(o.id) ? "#00D4AA" : o.status === "picked" ? "#28a745" : "#333"}`,
+              transition: "border 0.2s",
+            }}>
+              {/* Top row with checkbox */}
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+                <div onClick={() => toggleSelect(o.id)} style={{
+                  width: "22px", height: "22px", borderRadius: "4px", flexShrink: 0,
+                  border: `2px solid ${selectedIds.has(o.id) ? "#00D4AA" : "#555"}`,
+                  background: selectedIds.has(o.id) ? "#00D4AA" : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", transition: "all 0.15s",
+                }}>
+                  {selectedIds.has(o.id) && <span style={{ color: "#0D0D0D", fontSize: "14px", fontWeight: 900 }}>✓</span>}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <span style={{ color: "#fff", fontSize: "14px", fontWeight: 700 }}>{o.name}</span>
+                  <span style={{ color: "#888", fontSize: "12px", marginLeft: "8px" }}>{o.phone}</span>
+                </div>
+                <span style={{
+                  fontSize: "11px", padding: "3px 8px", borderRadius: "6px",
+                  background: o.status === "picked" ? "#28a74520" : "#00D4AA20",
+                  color: o.status === "picked" ? "#28a745" : "#00D4AA",
+                  fontWeight: 600,
+                }}>
+                  {o.status === "picked" ? "✓ 已取" : "⏳ 未取"}
+                </span>
+              </div>
+              <div style={{ fontSize: "12px", color: "#888", marginBottom: "6px" }}>
+                #{o.orderNo || o.id} ・ {o.time}
+              </div>
+              <div style={{ fontSize: "12px", color: "#ccc", marginBottom: "8px" }}>
+                {Object.entries(o.items).map(([fid, qty]) => {
+                  const fl = FLAVORS.find(f => f.id === fid);
+                  return `${fl?.emoji}${fl?.name}×${qty}`;
+                }).join("  ")}
+              </div>
+              {o.referrer && (
+                <div style={{
+                  fontSize: "12px", color: "#aaa", marginBottom: "6px",
+                }}>
+                  👤 推薦人：{o.referrer}
+                </div>
+              )}
+              {o.note && (
+                <div style={{
+                  fontSize: "12px", color: "#aaa", marginBottom: "8px",
+                  padding: "6px 10px", background: "#ffffff08", borderRadius: "6px",
+                  borderLeft: "3px solid #00D4AA",
+                }}>
+                  📝 客人備註：{o.note}
+                </div>
+              )}
+              {/* Admin Note */}
+              {editingNoteId === o.id ? (
+                <div style={{ marginBottom: "8px", display: "flex", gap: "6px" }}>
+                  <input
+                    value={editingNoteText}
+                    onChange={e => setEditingNoteText(e.target.value)}
+                    placeholder="輸入門市備註..."
+                    autoFocus
+                    style={{
+                      flex: 1, padding: "8px 10px", borderRadius: "6px",
+                      border: "1px solid #00B4DC", background: "#0D0D0D",
+                      color: "#fff", fontSize: "12px", outline: "none",
+                      fontFamily: "'Noto Sans TC', sans-serif",
+                    }}
+                    onKeyDown={e => { if (e.key === "Enter") saveAdminNote(o.id, editingNoteText); }}
+                  />
+                  <button onClick={() => saveAdminNote(o.id, editingNoteText)} style={{
+                    padding: "8px 12px", border: "none", borderRadius: "6px",
+                    background: "#00B4DC", color: "#fff", fontSize: "12px",
+                    cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+                    whiteSpace: "nowrap",
+                  }}>儲存</button>
+                  <button onClick={() => { setEditingNoteId(null); setEditingNoteText(""); }} style={{
+                    padding: "8px 10px", border: "none", borderRadius: "6px",
+                    background: "#333", color: "#aaa", fontSize: "12px",
+                    cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+                  }}>✕</button>
+                </div>
+              ) : (
+                <div style={{ marginBottom: "8px" }}>
+                  {o.adminNote ? (
+                    <div onClick={() => { setEditingNoteId(o.id); setEditingNoteText(o.adminNote || ""); }}
+                      style={{
+                        fontSize: "12px", color: "#ff9f43", padding: "6px 10px",
+                        background: "#ff9f4310", borderRadius: "6px",
+                        borderLeft: "3px solid #00B4DC", cursor: "pointer",
+                      }}>
+                      🏪 門市備註：{o.adminNote}
+                      <span style={{ color: "#666", fontSize: "10px", marginLeft: "6px" }}>點擊編輯</span>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setEditingNoteId(o.id); setEditingNoteText(""); }}
+                      style={{
+                        padding: "5px 10px", border: "1px dashed #444", borderRadius: "6px",
+                        background: "transparent", color: "#666", fontSize: "11px",
+                        cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+                      }}>
+                      + 新增門市備註
+                    </button>
+                  )}
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ color: "#00D4AA", fontSize: "14px", fontWeight: 700 }}>
+                  {o.total}支 ・ ${o.amount}
+                </span>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <button onClick={() => toggleStatus(o.id)} style={{
+                    padding: "6px 12px", border: "none", borderRadius: "6px",
+                    background: o.status === "picked" ? "#333" : "#28a745",
+                    color: "#fff", fontSize: "12px", cursor: "pointer",
+                    fontFamily: "'Noto Sans TC', sans-serif",
+                  }}>
+                    {o.status === "picked" ? "取消取貨" : "標記已取"}
+                  </button>
+                  {confirmDeleteId === o.id ? (
+                    <>
+                      <button onClick={() => deleteOrder(o.id)} style={{
+                        padding: "6px 12px", border: "none", borderRadius: "6px",
+                        background: "#ff4444", color: "#fff",
+                        fontSize: "12px", cursor: "pointer",
+                        fontFamily: "'Noto Sans TC', sans-serif",
+                      }}>確定刪除</button>
+                      <button onClick={() => setConfirmDeleteId(null)} style={{
+                        padding: "6px 10px", border: "none", borderRadius: "6px",
+                        background: "#333", color: "#aaa",
+                        fontSize: "12px", cursor: "pointer",
+                        fontFamily: "'Noto Sans TC', sans-serif",
+                      }}>取消</button>
+                    </>
+                  ) : (
+                    <button onClick={() => setConfirmDeleteId(o.id)}
+                      style={{
+                        padding: "6px 12px", border: "none", borderRadius: "6px",
+                        background: "#ff444430", color: "#ff4444",
+                        fontSize: "12px", cursor: "pointer",
+                        fontFamily: "'Noto Sans TC', sans-serif",
+                      }}>
+                      刪除
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+
+  {/* Stock Tab */}
+  {tab === "stock" && (
+    <div>
+      {/* Quick fill when editing */}
+      {editStock && (
+        <div style={{ marginBottom: "12px" }}>
+          <div style={{ color: "#888", fontSize: "11px", marginBottom: "6px" }}>快速設定每個口味：</div>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            {[10, 20, 30, 50].map(n => (
+              <button key={n} onClick={() => {
+                const filled = {};
+                FLAVORS.forEach(f => { filled[f.id] = n; });
+                setEditStock(filled);
+              }} style={{
+                padding: "6px 14px", border: "1px solid #444", borderRadius: "6px",
+                background: "#1A1A1A", color: "#00D4AA", fontSize: "12px",
+                cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+              }}>每種 {n} 支</button>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* Total summary */}
+      {editStock && (
+        <div style={{
+          background: "#00D4AA10", border: "1px solid #00D4AA30", borderRadius: "8px",
+          padding: "10px", marginBottom: "12px", textAlign: "center",
+        }}>
+          <span style={{ color: "#00D4AA", fontSize: "14px", fontWeight: 700 }}>
+            合計：{Object.values(editStock).reduce((a, b) => a + b, 0)} 支
+          </span>
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {FLAVORS.map(f => {
+          const current = editStock ? editStock[f.id] : stock[f.id];
+          // Calculate sold for this flavor from orders
+          const soldForFlavor = orders.reduce((sum, o) => sum + (o.items[f.id] || 0), 0);
+          return (
+            <div key={f.id} style={{
+              background: "#1A1A1A", borderRadius: "10px", padding: "12px",
+              border: "1px solid #333", display: "flex", alignItems: "center", gap: "10px",
+            }}>
+              <span style={{ fontSize: "24px" }}>{f.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: "#fff", fontSize: "13px", fontWeight: 500 }}>{f.name}</div>
+                <div style={{ color: "#888", fontSize: "11px" }}>
+                  剩 {stock[f.id]} 支 ・ 已售 {soldForFlavor} 支
+                </div>
+                {/* Mini bar */}
+                <div style={{ height: "3px", background: "#333", borderRadius: "2px", marginTop: "4px" }}>
+                  {(() => {
+                    const totalForFlavor = (stock[f.id] || 0) + soldForFlavor;
+                    return (
+                      <div style={{
+                        width: `${totalForFlavor > 0 ? (soldForFlavor / totalForFlavor) * 100 : 0}%`,
+                        height: "100%", background: stock[f.id] <= 0 && soldForFlavor > 0 ? "#ff4444" : "#00D4AA",
+                        borderRadius: "2px", transition: "width 0.3s",
+                      }} />
+                    );
+                  })()}
+                </div>
+              </div>
+              {editStock ? (
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" value={current}
+                  onChange={e => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setEditStock(s => ({ ...s, [f.id]: val === "" ? 0 : parseInt(val) }));
+                  }}
+                  onFocus={e => e.target.select()}
+                  style={{
+                    width: "64px", padding: "8px", borderRadius: "6px",
+                    border: "1px solid #00D4AA", background: "#0D0D0D",
+                    color: "#00D4AA", fontSize: "16px", textAlign: "center",
+                    fontFamily: "'Noto Sans TC', sans-serif", outline: "none",
+                  }}
+                />
+              ) : (
+                <span style={{ color: stock[f.id] <= 0 ? "#ff4444" : "#00D4AA", fontSize: "18px", fontWeight: 700, minWidth: "40px", textAlign: "right" }}>
+                  {current}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
+        {editStock ? (
+          <>
+            <button onClick={() => {
+              if (!editStock) return;
+              const s = { ...editStock };
+              setEditStock(null);
+              saveStock(s);
+            }} style={{
+              flex: 1, padding: "12px", border: "none", borderRadius: "8px",
+              background: "#28a745", color: "#fff", fontSize: "14px",
+              fontWeight: 700, cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+            }}>儲存變更</button>
+            <button onClick={() => setEditStock(null)} style={{
+              flex: 1, padding: "12px", border: "none", borderRadius: "8px",
+              background: "#333", color: "#fff", fontSize: "14px",
+              cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+            }}>取消</button>
+          </>
+        ) : (
+          <button onClick={() => setEditStock({ ...stock })} style={{
+            flex: 1, padding: "12px", border: "none", borderRadius: "8px",
+            background: "#00B4DC", color: "#fff", fontSize: "14px",
+            fontWeight: 700, cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+          }}>✏️ 編輯庫存</button>
+        )}
+      </div>
+    </div>
+  )}
+
+  {/* Bottom Actions */}
+  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "20px" }}>
+    {/* Show raw data panel as fallback */}
+    {showExportPanel && (
+      <div style={{
+        background: "#1A1A1A", borderRadius: "10px", padding: "12px",
+        border: "1px solid #333",
+      }}>
+        <div style={{ color: "#888", fontSize: "11px", marginBottom: "6px" }}>
+          全選下方文字 → 複製 → 貼到 Google 試算表
+        </div>
+        <textarea
+          readOnly
+          value={generateTSV()}
+          onFocus={e => e.target.select()}
+          style={{
+            width: "100%", boxSizing: "border-box", minHeight: "120px",
+            padding: "10px", borderRadius: "6px", border: "1px solid #444",
+            background: "#0D0D0D", color: "#ccc", fontSize: "11px",
+            fontFamily: "monospace", resize: "vertical", outline: "none",
+          }}
+        />
+        <button onClick={() => setShowExportPanel(false)} style={{
+          marginTop: "8px", padding: "6px 12px", border: "none", borderRadius: "6px",
+          background: "#333", color: "#aaa", fontSize: "12px",
+          cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+        }}>收起</button>
+      </div>
+    )}
+
+    <div style={{ display: "flex", gap: "8px" }}>
+      {confirmReset ? (
+        <>
+          <button onClick={resetAll} style={{
+            flex: 1, padding: "12px", border: "none", borderRadius: "8px",
+            background: "#ff4444", color: "#fff", fontSize: "13px",
+            cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif", fontWeight: 700,
+          }}>確定重置</button>
+          <button onClick={() => setConfirmReset(false)} style={{
             flex: 1, padding: "12px", border: "1px solid #333", borderRadius: "8px",
             background: "transparent", color: "#888", fontSize: "13px",
             cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
-          }}>🔒 返回客戶端</button>
-        </div>
-      </div>
+          }}>取消</button>
+        </>
+      ) : (
+        <button onClick={() => setConfirmReset(true)} style={{
+          flex: 1, padding: "12px", border: "1px solid #ff444440", borderRadius: "8px",
+          background: "transparent", color: "#ff4444", fontSize: "13px",
+          cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+        }}>🗑 重置全部</button>
+      )}
+      <button onClick={onLogout} style={{
+        flex: 1, padding: "12px", border: "1px solid #333", borderRadius: "8px",
+        background: "transparent", color: "#888", fontSize: "13px",
+        cursor: "pointer", fontFamily: "'Noto Sans TC', sans-serif",
+      }}>🔒 返回客戶端</button>
     </div>
-  );
+  </div>
+</div>
+```
+
+);
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById(‘root’));
 root.render(React.createElement(App));
 </script>
+
 </body>
 </html>
