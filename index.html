@@ -533,7 +533,7 @@ function CustomerView({
 
     // Update UI immediately - show success
     saveStock(newStock);
-    setOrders(function(prev) { return prev.concat([order]); });
+    saveOrders(orders.concat([order]));
     setSuccess(order);
     setCart({});
     setName("");
