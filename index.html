@@ -72,17 +72,15 @@ const ADMIN_PIN = "a182580"; // 門市端密碼
 // === GAS API ===
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwxNufDCVemKkNW8WUu-dzDcvQj000RA9z_D0rbFh4_SOAxTHiSHTeuwdjJ3Op-VyAI/exec";
 
-// POST to GAS using fetch with text/plain (most reliable for GAS CORS)
-var api = function(body) {
+// POST to GAS - fire and forget (no-cors because GAS redirects break CORS on POST)
+var apiPost = function(body) {
   return fetch(GAS_URL, {
     method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(body),
     redirect: "follow",
-    mode: "cors"
-  }).then(function(res) { return res.text(); })
-    .then(function(text) { try { return JSON.parse(text); } catch(e) { return { error: "parse", raw: text }; } })
-    .catch(function(e) { console.error("API err:", e); return { error: e.toString() }; });
+    mode: "no-cors"
+  }).then(function() { return { sent: true }; })
+    .catch(function(e) { return { sent: false, error: e.toString() }; });
 };
 
 // GET data from GAS
@@ -160,20 +158,20 @@ function App() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newStock));
     } catch (e) {}
-    api({
+    apiPost({
       action: "updateStock",
       stock: newStock
-    }).catch(e => console.error(e));
+    }).catch(function(e) { console.error(e); });
   };
   const saveOrders = newOrders => {
     setOrders(newOrders);
     try {
       localStorage.setItem(ORDERS_KEY, JSON.stringify(newOrders));
     } catch (e) {}
-    api({
+    apiPost({
       action: "updateOrders",
       orders: newOrders
-    }).catch(e => console.error(e));
+    }).catch(function(e) { console.error(e); });
   };
   const totalRemaining = stock ? Object.values(stock).reduce((a, b) => a + b, 0) : 0;
   const totalSold = orders ? orders.reduce((sum, o) => sum + o.total, 0) : 0;
@@ -531,26 +529,26 @@ function CustomerView({
     // Remember current order count before submit
     var orderCountBefore = orders.length;
     
-    // Send to GAS then verify
     setSubmitStatus("sending");
-    api({
+    
+    // Step 1: POST order (fire-and-forget, no-cors)
+    apiPost({
       action: "saveOrder",
       order: order,
       stockDeductions: savedCart
     }).then(function() {
-      // Wait a moment for GAS to finish writing, then verify
-      return new Promise(function(resolve) { setTimeout(resolve, 1500); });
+      // Step 2: Wait for GAS to process
+      return new Promise(function(resolve) { setTimeout(resolve, 2500); });
     }).then(function() {
+      // Step 3: GET to verify (this works with cors)
       return fetchData();
     }).then(function(data) {
       if (data && data.ok) {
         var serverOrders = data.orders || [];
-        // Verify: server has more orders than before, OR our id exists
         var found = serverOrders.find(function(o) { return String(o.id) === String(order.id); });
         var countIncreased = serverOrders.length > orderCountBefore;
         
         if (found || countIncreased) {
-          // Order confirmed!
           if (found) order.orderNo = found.orderNo || "---";
           else if (serverOrders.length > 0) order.orderNo = serverOrders[serverOrders.length - 1].orderNo || "---";
           setStock(data.stock && Object.keys(data.stock).length > 0 ? data.stock : getInitialStock());
@@ -568,11 +566,35 @@ function CustomerView({
           return;
         }
       }
-      // Not confirmed
-      setSubmitStatus("error");
-      setTimeout(function() { setSubmitStatus("idle"); }, 4000);
+      // Not confirmed yet - try once more after another wait
+      return new Promise(function(resolve) { setTimeout(resolve, 2000); }).then(function() {
+        return fetchData();
+      }).then(function(data2) {
+        if (data2 && data2.ok) {
+          var serverOrders2 = data2.orders || [];
+          if (serverOrders2.length > orderCountBefore) {
+            var last = serverOrders2[serverOrders2.length - 1];
+            order.orderNo = last.orderNo || "---";
+            setStock(data2.stock && Object.keys(data2.stock).length > 0 ? data2.stock : getInitialStock());
+            setOrders(serverOrders2);
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data2.stock)); } catch(e) {}
+            try { localStorage.setItem(ORDERS_KEY, JSON.stringify(serverOrders2)); } catch(e) {}
+            setSuccess(order);
+            setCart({});
+            setName("");
+            setPhone("");
+            setNote("");
+            setReferrer("");
+            setSubmitStatus("done");
+            setTimeout(function() { setSubmitStatus("idle"); }, 1500);
+            return;
+          }
+        }
+        setSubmitStatus("error");
+        setTimeout(function() { setSubmitStatus("idle"); }, 4000);
+      });
     }).catch(function(e) {
-      console.error("verify error:", e);
+      console.error("submit error:", e);
       setSubmitStatus("error");
       setTimeout(function() { setSubmitStatus("idle"); }, 4000);
     });
