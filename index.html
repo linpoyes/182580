@@ -139,23 +139,16 @@ function App() {
   const [tapCount, setTapCount] = useState(0);
   const tapTimer = useRef(null);
 
-  // Sync status
-  const [syncStatus, setSyncStatus] = useState("syncing");
-
   // Sync from GAS in background (non-blocking)
   const loadData = useCallback(function() {
-    setSyncStatus("syncing");
     fetchData().then(function(data) {
       if (data && data.ok) {
         setStock(data.stock && Object.keys(data.stock).length > 0 ? data.stock : getInitialStock());
         setOrders(data.orders || []);
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.stock)); } catch(e) {}
         try { localStorage.setItem(ORDERS_KEY, JSON.stringify(data.orders)); } catch(e) {}
-        setSyncStatus("ok");
-      } else {
-        setSyncStatus("error: " + JSON.stringify(data).slice(0, 80));
       }
-    }).catch(function(e) { setSyncStatus("fail: " + e.toString().slice(0, 80)); });
+    }).catch(function(e) { console.warn("GAS sync failed:", e); });
   }, []);
   useEffect(function() {
     loadData();
@@ -2572,40 +2565,11 @@ class ErrorBoundary extends React.Component {
 }
 
 try {
-  const root = ReactDOM.createRoot(document.getElementById('root'));
+  var root = ReactDOM.createRoot(document.getElementById('root'));
   root.render(React.createElement(ErrorBoundary, null, React.createElement(App)));
 } catch(e) {
   document.getElementById('root').innerHTML = '<div style="padding:40px;color:#ff6b6b;text-align:center;font-family:sans-serif"><h2>JS Error</h2><p style="color:#aaa;font-size:12px;word-break:break-all">' + String(e) + '</p></div>';
 }
-
-// Debug: show GAS connection status
-(function() {
-  var d = document.createElement('div');
-  d.id = 'gas-debug';
-  d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;padding:8px;background:#000c;color:#0f0;font-size:11px;font-family:monospace;z-index:9999;text-align:center;';
-  d.textContent = '⏳ Testing GAS...';
-  document.body.appendChild(d);
-  
-  fetch(GAS_URL, { redirect: "follow", mode: "cors" })
-    .then(function(r) { d.textContent = '📡 Status: ' + r.status + ' ' + r.type; return r.text(); })
-    .then(function(t) {
-      try {
-        var j = JSON.parse(t);
-        d.style.color = j.ok ? '#0f0' : '#f80';
-        d.textContent = j.ok ? '✅ GAS OK! Orders: ' + (j.orders||[]).length + ' Stock keys: ' + Object.keys(j.stock||{}).length : '⚠️ GAS response: ' + t.slice(0, 100);
-      } catch(e) {
-        d.style.color = '#f00';
-        d.textContent = '❌ Not JSON: ' + t.slice(0, 120);
-      }
-    })
-    .catch(function(e) {
-      d.style.color = '#f00';
-      d.textContent = '❌ Fetch failed: ' + e.toString();
-    });
-    
-  // Auto-hide after 15 seconds
-  setTimeout(function() { d.style.display = 'none'; }, 15000);
-})();
 </script>
 </body>
 </html>
