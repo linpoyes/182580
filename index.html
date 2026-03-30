@@ -584,7 +584,7 @@ function CustomerView({
     const hasNote = success.note && success.note.length > 0;
     const hasReferrer = success.referrer && success.referrer.length > 0;
     const hasPickupDate = success.pickupDate && success.pickupDate.length > 0;
-    const H = (520 + items.length * 36 + (hasPickupDate ? 46 : 0) + (hasNote ? 60 : 0) + (hasReferrer ? 30 : 0)) * dpr;
+    const H = (580 + items.length * 36 + (hasPickupDate ? 20 : 0) + (hasNote ? 60 : 0) + (hasReferrer ? 30 : 0)) * dpr;
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext("2d");
@@ -644,63 +644,46 @@ function CustomerView({
     ctx.fillText("✓ 預購成功", w / 2, 121);
     let y = 156;
 
-    // Order info card
-    ctx.fillStyle = "#1A1A1A";
-    const cardH = 80 + items.length * 36 + (hasNote ? 50 : 0);
-    roundRect(ctx, 20, y - 10, w - 40, cardH, 12);
-    ctx.fill();
-    ctx.strokeStyle = "#333";
-    ctx.lineWidth = 1;
-    roundRect(ctx, 20, y - 10, w - 40, cardH, 12);
-    ctx.stroke();
+    // Order info area (no card frame)
     ctx.textAlign = "left";
 
-    // Helper: format time
-    var fmtTime = function(t) { try { var d = new Date(t); return isNaN(d.getTime()) ? t : d.toLocaleString("zh-TW"); } catch(e) { return t; } };
+    // Helper: format time (without seconds)
+    var fmtTime = function(t) { try { var d = new Date(t); if (isNaN(d.getTime())) return t; return d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + " " + (d.getHours() >= 12 ? "下午" : "上午") + (d.getHours() % 12 || 12) + ":" + String(d.getMinutes()).padStart(2,"0"); } catch(e) { return t; } };
 
-    // Order ID (left)
-    ctx.fillStyle = "#888";
-    ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+    // Name - 14px bold
     ctx.textAlign = "left";
-    ctx.fillText("訂單編號", 36, y + 8);
-    ctx.fillStyle = "#FFD700";
-    ctx.font = "bold 14px monospace";
-    ctx.fillText("#" + success.orderNo, 36, y + 28);
-
-    // Time (right, same row as 訂單編號)
-    ctx.fillStyle = "#888";
-    ctx.font = "400 11px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText(fmtTime(success.time), w - 36, y + 8);
-
-    // Name (right)
     ctx.fillStyle = "#fff";
-    ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
-    ctx.fillText(success.name, w - 36, y + 28);
+    ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
+    ctx.fillText(success.name, 36, y);
 
-    // Phone (right, new line)
+    // Phone
+    y += 20;
     ctx.fillStyle = "#ccc";
     ctx.font = "400 13px 'Noto Sans TC', sans-serif";
-    ctx.fillText(String(success.phone || ""), w - 36, y + 48);
+    ctx.fillText(String(success.phone || ""), 36, y);
+
+    // Order No + Time
+    y += 20;
+    ctx.fillStyle = "#888";
+    ctx.font = "400 11px monospace";
+    ctx.fillText("#" + success.orderNo + "  " + fmtTime(success.time), 36, y);
 
     // Pickup date
-    y += 58;
     if (success.pickupDate) {
-      ctx.textAlign = "left";
+      y += 20;
       ctx.fillStyle = "#00D4AA";
       ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
       ctx.fillText("📅 取貨日期：" + success.pickupDate, 36, y);
-      y += 16;
     }
 
-    // Divider
-    y += 42;
+    // Divider before items
+    y += 24;
     ctx.strokeStyle = "#33333380";
     ctx.beginPath();
     ctx.moveTo(36, y);
     ctx.lineTo(w - 36, y);
     ctx.stroke();
-    y += 16;
+    y += 20;
 
     // Items
     items.forEach(([fid, qty]) => {
@@ -729,11 +712,6 @@ function CustomerView({
 
     // Note
     if (hasNote) {
-      ctx.strokeStyle = "#33333380";
-      ctx.beginPath();
-      ctx.moveTo(36, y - 12);
-      ctx.lineTo(w - 36, y - 12);
-      ctx.stroke();
       ctx.textAlign = "left";
       ctx.fillStyle = "#888";
       ctx.font = "400 11px 'Noto Sans TC', sans-serif";
@@ -744,8 +722,15 @@ function CustomerView({
       y += 46;
     }
 
+    // Divider before total
+    ctx.strokeStyle = "#33333380";
+    ctx.beginPath();
+    ctx.moveTo(36, y);
+    ctx.lineTo(w - 36, y);
+    ctx.stroke();
+
     // Total bar
-    y += 6;
+    y += 10;
     ctx.fillStyle = "#C41E3A18";
     roundRect(ctx, 20, y, w - 40, 48, 12);
     ctx.fill();
@@ -1534,20 +1519,20 @@ function AdminView({
     ctx.stroke();
     cy += 22;
 
-    // Name
+    // Name - 14px bold
     ctx.textAlign = "left";
     ctx.fillStyle = "#000";
-    ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+    ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
     ctx.fillText(o.name, cx, cy);
-    // Phone (separate line)
-    cy += 22;
+    // Phone
+    cy += 20;
     ctx.fillStyle = "#555";
     ctx.font = "400 12px 'Noto Sans TC', sans-serif";
     ctx.fillText(String(o.phone || ""), cx, cy);
 
-    // Order No + Time (separate line, same 22px spacing)
-    cy += 22;
-    var fmtT = (function(t) { try { var d = new Date(t); return isNaN(d.getTime()) ? t : d.toLocaleString("zh-TW"); } catch(e) { return t; } })(o.time);
+    // Order No + Time (without seconds)
+    cy += 20;
+    var fmtT = (function(t) { try { var d = new Date(t); if (isNaN(d.getTime())) return t; return d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + " " + (d.getHours() >= 12 ? "下午" : "上午") + (d.getHours() % 12 || 12) + ":" + String(d.getMinutes()).padStart(2,"0"); } catch(e) { return t; } })(o.time);
     ctx.fillStyle = "#888";
     ctx.font = "400 9px monospace";
     ctx.fillText("#" + (o.orderNo || o.id) + "  " + fmtT, cx, cy);
@@ -1558,14 +1543,14 @@ function AdminView({
 
     // Pickup date
     if (o.pickupDate) {
-      cy += 18;
+      cy += 20;
       ctx.textAlign = "left";
       ctx.fillStyle = "#8B0023";
       ctx.font = "bold 11px 'Noto Sans TC', sans-serif";
       ctx.fillText("\uD83D\uDCC5 \u53D6\u8CA8\u65E5\u671F\uFF1A" + o.pickupDate, cx, cy);
     }
 
-    cy += 14;
+    cy += 16;
     ctx.strokeStyle = "#ddd";
     ctx.lineWidth = 0.5;
     ctx.beginPath();
