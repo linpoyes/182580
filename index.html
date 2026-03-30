@@ -72,29 +72,20 @@ const ADMIN_PIN = "a182580"; // 門市端密碼
 // === GAS API ===
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwxNufDCVemKkNW8WUu-dzDcvQj000RA9z_D0rbFh4_SOAxTHiSHTeuwdjJ3Op-VyAI/exec";
 
-// POST to GAS - fire and forget (no-cors because GAS redirects break CORS on POST)
-var apiPost = function(body) {
-  return fetch(GAS_URL, {
-    method: "POST",
-    body: JSON.stringify(body),
-    redirect: "follow",
-    mode: "no-cors"
-  }).then(function() { return { sent: true }; })
-    .catch(function(e) { return { sent: false, error: e.toString() }; });
-};
-
-// GET data from GAS
-var fetchData = function() {
+// All communication via GET (avoids CORS issues with GAS POST redirect)
+var gasCall = function(data) {
+  var url = GAS_URL;
+  if (data) url += "?data=" + encodeURIComponent(JSON.stringify(data));
   return new Promise(function(resolve) {
     var done = false;
-    var timer = setTimeout(function() { if (!done) { done = true; resolve({ error: "timeout" }); } }, 8000);
-    fetch(GAS_URL, { redirect: "follow", mode: "cors" })
+    var timer = setTimeout(function() { if (!done) { done = true; resolve({ error: "timeout" }); } }, 15000);
+    fetch(url, { redirect: "follow" })
       .then(function(res) { return res.text(); })
       .then(function(text) {
         if (done) return;
         done = true;
         clearTimeout(timer);
-        try { resolve(JSON.parse(text)); } catch(e) { resolve({ error: "parse", raw: text }); }
+        try { resolve(JSON.parse(text)); } catch(e) { resolve({ error: "parse", raw: text.slice(0, 200) }); }
       })
       .catch(function(e) {
         if (done) return;
@@ -104,6 +95,7 @@ var fetchData = function() {
       });
   });
 };
+var fetchData = function() { return gasCall(null); };
 const STORAGE_KEY = "haagen-stock";
 const ORDERS_KEY = "haagen-orders";
 
@@ -158,7 +150,7 @@ function App() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newStock));
     } catch (e) {}
-    apiPost({
+    gasCall({
       action: "updateStock",
       stock: newStock
     }).catch(function(e) { console.error(e); });
@@ -168,7 +160,7 @@ function App() {
     try {
       localStorage.setItem(ORDERS_KEY, JSON.stringify(newOrders));
     } catch (e) {}
-    apiPost({
+    gasCall({
       action: "updateOrders",
       orders: newOrders
     }).catch(function(e) { console.error(e); });
@@ -528,73 +520,37 @@ function CustomerView({
 
     // Remember current order count before submit
     var orderCountBefore = orders.length;
-    
     setSubmitStatus("sending");
     
-    // Step 1: POST order (fire-and-forget, no-cors)
-    apiPost({
+    // Single GET call to save order - GAS returns result directly
+    gasCall({
       action: "saveOrder",
       order: order,
       stockDeductions: savedCart
-    }).then(function() {
-      // Step 2: Wait for GAS to process
-      return new Promise(function(resolve) { setTimeout(resolve, 2500); });
-    }).then(function() {
-      // Step 3: GET to verify (this works with cors)
-      return fetchData();
-    }).then(function(data) {
-      if (data && data.ok) {
-        var serverOrders = data.orders || [];
-        var found = serverOrders.find(function(o) { return String(o.id) === String(order.id); });
-        var countIncreased = serverOrders.length > orderCountBefore;
-        
-        if (found || countIncreased) {
-          if (found) order.orderNo = found.orderNo || "---";
-          else if (serverOrders.length > 0) order.orderNo = serverOrders[serverOrders.length - 1].orderNo || "---";
-          setStock(data.stock && Object.keys(data.stock).length > 0 ? data.stock : getInitialStock());
-          setOrders(serverOrders);
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.stock)); } catch(e) {}
-          try { localStorage.setItem(ORDERS_KEY, JSON.stringify(serverOrders)); } catch(e) {}
-          setSuccess(order);
-          setCart({});
-          setName("");
-          setPhone("");
-          setNote("");
-          setReferrer("");
-          setSubmitStatus("done");
-          setTimeout(function() { setSubmitStatus("idle"); }, 1500);
-          return;
+    }).then(function(res) {
+      if (res && res.ok) {
+        // GAS confirmed save - use returned data
+        order.orderNo = res.orderNo || "---";
+        if (res.stock) {
+          setStock(res.stock);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(res.stock)); } catch(e) {}
         }
-      }
-      // Not confirmed yet - try once more after another wait
-      return new Promise(function(resolve) { setTimeout(resolve, 2000); }).then(function() {
-        return fetchData();
-      }).then(function(data2) {
-        if (data2 && data2.ok) {
-          var serverOrders2 = data2.orders || [];
-          if (serverOrders2.length > orderCountBefore) {
-            var last = serverOrders2[serverOrders2.length - 1];
-            order.orderNo = last.orderNo || "---";
-            setStock(data2.stock && Object.keys(data2.stock).length > 0 ? data2.stock : getInitialStock());
-            setOrders(serverOrders2);
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data2.stock)); } catch(e) {}
-            try { localStorage.setItem(ORDERS_KEY, JSON.stringify(serverOrders2)); } catch(e) {}
-            setSuccess(order);
-            setCart({});
-            setName("");
-            setPhone("");
-            setNote("");
-            setReferrer("");
-            setSubmitStatus("done");
-            setTimeout(function() { setSubmitStatus("idle"); }, 1500);
-            return;
-          }
-        }
+        setSuccess(order);
+        setCart({});
+        setName("");
+        setPhone("");
+        setNote("");
+        setReferrer("");
+        setSubmitStatus("done");
+        // Sync full data in background
+        setTimeout(function() { loadData(); setSubmitStatus("idle"); }, 1000);
+      } else {
+        console.error("saveOrder response:", res);
         setSubmitStatus("error");
         setTimeout(function() { setSubmitStatus("idle"); }, 4000);
-      });
+      }
     }).catch(function(e) {
-      console.error("submit error:", e);
+      console.error("saveOrder error:", e);
       setSubmitStatus("error");
       setTimeout(function() { setSubmitStatus("idle"); }, 4000);
     });
