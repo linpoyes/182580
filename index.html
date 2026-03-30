@@ -528,36 +528,44 @@ function CustomerView({
       ...cart
     };
 
-    // Send to GAS atomically
+    // Send to GAS then verify
+    setSubmitStatus("sending");
     api({
       action: "saveOrder",
-      order,
+      order: order,
       stockDeductions: savedCart
-    }).then(res => {
-      if (res && res.ok) {
-        order.orderNo = res.orderNo || "---";
-        if (res.stock) setStock(res.stock);
-        setOrders(prev => [...prev, order]);
-        setSuccess(order);
-        setCart({});
-        setName("");
-        setPhone("");
-        setNote("");
-        setReferrer("");
-        setSubmitStatus("done");
-        setTimeout(() => {
-          loadData();
-          setSubmitStatus("idle");
-        }, 1500);
-      } else {
-        console.error("saveOrder failed:", res);
-        setSubmitStatus("error");
-        setTimeout(() => setSubmitStatus("idle"), 3000);
+    }).then(function(res) {
+      // Whether POST response is readable or not, verify by fetching all data
+      return fetchData();
+    }).then(function(data) {
+      if (data && data.ok) {
+        // Check if our order exists in the returned orders
+        var found = (data.orders || []).find(function(o) { return o.id === order.id; });
+        if (found) {
+          // Order confirmed saved!
+          order.orderNo = found.orderNo || "---";
+          setStock(data.stock && Object.keys(data.stock).length > 0 ? data.stock : getInitialStock());
+          setOrders(data.orders);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.stock)); } catch(e) {}
+          try { localStorage.setItem(ORDERS_KEY, JSON.stringify(data.orders)); } catch(e) {}
+          setSuccess(order);
+          setCart({});
+          setName("");
+          setPhone("");
+          setNote("");
+          setReferrer("");
+          setSubmitStatus("done");
+          setTimeout(function() { setSubmitStatus("idle"); }, 1500);
+          return;
+        }
       }
-    }).catch(e => {
-      console.error("saveOrder error:", e);
+      // Order not found — really failed
       setSubmitStatus("error");
-      setTimeout(() => setSubmitStatus("idle"), 3000);
+      setTimeout(function() { setSubmitStatus("idle"); }, 4000);
+    }).catch(function(e) {
+      console.error("saveOrder verify error:", e);
+      setSubmitStatus("error");
+      setTimeout(function() { setSubmitStatus("idle"); }, 4000);
     });
   };
 
