@@ -498,7 +498,6 @@ function CustomerView({
   };
   const isPhoneValid = /^09\d{8}$/.test(phone.trim());
   const handleSubmit = () => {
-    try {
     if (!name.trim()) return;
     if (!isPhoneValid) {
       setPhoneError("請輸入正確的10碼手機號碼（09開頭）");
@@ -533,7 +532,7 @@ function CustomerView({
     order.orderNo = String(orders.length + 1).padStart(3, "0");
 
     // Update UI immediately - show success
-    setStock(newStock);
+    saveStock(newStock);
     setOrders(function(prev) { return prev.concat([order]); });
     setSuccess(order);
     setCart({});
@@ -561,10 +560,6 @@ function CustomerView({
       }
       loadData();
     }).catch(function(e2) { console.warn("GAS send failed:", e2); });
-
-    } catch(err) {
-      alert("Submit error: " + err.toString());
-    }
   };
 
   // --- Generate order image on canvas ---
