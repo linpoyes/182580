@@ -464,7 +464,6 @@ function CustomerView({
   const [note, setNote] = useState("");
   const [referrer, setReferrer] = useState("");
   const [phoneError, setPhoneError] = useState("");
-  const [submitStatus, setSubmitStatus] = useState("idle"); // idle | sending | done | error
   const [success, setSuccess] = useState(null);
   const canvasRef = useRef(null);
   const [imgSrc, setImgSrc] = useState(null);
@@ -496,9 +495,7 @@ function CustomerView({
       return;
     }
     if (!isValid8) return;
-    if (submitStatus === "sending") return;
     setPhoneError("");
-    setSubmitStatus("sending");
     const order = {
       id: generateId(),
       orderNo: "---",
@@ -537,9 +534,6 @@ function CustomerView({
     setPhone("");
     setNote("");
     setReferrer("");
-    setSubmitStatus("done");
-    setTimeout(function() { setSubmitStatus("idle"); }, 1500);
-
     // Save to localStorage
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newStock)); } catch(e) {}
     try {
@@ -1093,9 +1087,7 @@ function CustomerView({
       resize: "none"
     }
   })), (() => {
-    const canSubmit = isValid8 && name.trim() && isPhoneValid && submitStatus === "idle";
-    const isSending = submitStatus === "sending";
-    const isError = submitStatus === "error";
+    const canSubmit = isValid8 && name.trim() && isPhoneValid;
     return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("button", {
       onClick: handleSubmit,
       style: {
@@ -1103,23 +1095,16 @@ function CustomerView({
         padding: "16px",
         border: "none",
         borderRadius: "12px",
-        background: isSending ? "#444" : isError ? "#ff4444" : canSubmit ? "linear-gradient(135deg, #00B4DC, #0088A8)" : "#222",
-        color: isSending ? "#aaa" : isError ? "#fff" : canSubmit ? "#fff" : "#555",
+        background: canSubmit ? "linear-gradient(135deg, #00B4DC, #0088A8)" : "#222",
+        color: canSubmit ? "#fff" : "#555",
         fontSize: "16px",
         fontWeight: 700,
         cursor: canSubmit ? "pointer" : "default",
         fontFamily: "'Noto Sans TC', sans-serif",
         transition: "all 0.2s",
-        opacity: canSubmit || isSending || isError ? 1 : 0.6
+        opacity: canSubmit ? 1 : 0.6
       }
-    }, isSending ? "⏳ 提交中，請稍候..." : isError ? "❌ 提交失敗，請重試" : cartTotal === 0 ? "確認預購" : !isValid8 ? `還差 ${8 - cartTotal % 8} 支湊滿 ${Math.ceil(cartTotal / 8) * 8} 支` : `確認預購（${cartPacks}組 $${cartAmount}）`), isError && /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "#ff6b6b",
-        fontSize: "12px",
-        textAlign: "center",
-        marginTop: "8px"
-      }
-    }, "\u7DB2\u8DEF\u53EF\u80FD\u4E0D\u7A69\uFF0C\u8ACB\u78BA\u8A8D\u7DB2\u8DEF\u9023\u7DDA\u5F8C\u518D\u8A66\u4E00\u6B21"));
+    }, cartTotal === 0 ? "確認預購" : !isValid8 ? `還差 ${8 - cartTotal % 8} 支湊滿 ${Math.ceil(cartTotal / 8) * 8} 支` : `確認預購（${cartPacks}組 $${cartAmount}）`));
   })());
 }
 
