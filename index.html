@@ -655,36 +655,42 @@ function CustomerView({
     ctx.stroke();
     ctx.textAlign = "left";
 
-    // Order ID
+    // Helper: format time
+    var fmtTime = function(t) { try { var d = new Date(t); return isNaN(d.getTime()) ? t : d.toLocaleString("zh-TW"); } catch(e) { return t; } };
+
+    // Order ID (left)
     ctx.fillStyle = "#888";
     ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
     ctx.fillText("訂單編號", 36, y + 8);
     ctx.fillStyle = "#FFD700";
     ctx.font = "bold 14px monospace";
-    ctx.fillText("#" + success.orderNo, 36, y + 26);
+    ctx.fillText("#" + success.orderNo, 36, y + 28);
 
-    // Name & phone
+    // Time (right, same row as 訂單編號)
     ctx.fillStyle = "#888";
     ctx.font = "400 11px 'Noto Sans TC', sans-serif";
     ctx.textAlign = "right";
-    ctx.fillText(success.time, w - 36, y + 8);
-    // Name
+    ctx.fillText(fmtTime(success.time), w - 36, y + 8);
+
+    // Name (right)
     ctx.fillStyle = "#fff";
     ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
     ctx.fillText(success.name, w - 36, y + 28);
-    // Phone (separate line)
+
+    // Phone (right, new line)
     ctx.fillStyle = "#ccc";
     ctx.font = "400 13px 'Noto Sans TC', sans-serif";
     ctx.fillText(String(success.phone || ""), w - 36, y + 48);
 
     // Pickup date
+    y += 58;
     if (success.pickupDate) {
-      y += 38;
       ctx.textAlign = "left";
       ctx.fillStyle = "#00D4AA";
       ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
       ctx.fillText("📅 取貨日期：" + success.pickupDate, 36, y);
-      y += 8;
+      y += 16;
     }
 
     // Divider
@@ -1526,7 +1532,7 @@ function AdminView({
     ctx.moveTo(cx, cy);
     ctx.lineTo(rEdge, cy);
     ctx.stroke();
-    cy += 18;
+    cy += 22;
 
     // Name
     ctx.textAlign = "left";
@@ -1539,10 +1545,12 @@ function AdminView({
     ctx.font = "400 12px 'Noto Sans TC', sans-serif";
     ctx.fillText(String(o.phone || ""), cx, cy);
 
-    cy += 20;
+    // Order No + Time (separate line, same 22px spacing)
+    cy += 22;
+    var fmtT = (function(t) { try { var d = new Date(t); return isNaN(d.getTime()) ? t : d.toLocaleString("zh-TW"); } catch(e) { return t; } })(o.time);
     ctx.fillStyle = "#888";
     ctx.font = "400 9px monospace";
-    ctx.fillText("#" + (o.orderNo || o.id) + "  " + o.time, cx, cy);
+    ctx.fillText("#" + (o.orderNo || o.id) + "  " + fmtT, cx, cy);
     ctx.textAlign = "right";
     ctx.fillStyle = o.status === "picked" ? "#155724" : "#856404";
     ctx.font = "600 9px 'Noto Sans TC', sans-serif";
