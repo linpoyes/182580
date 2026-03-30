@@ -477,6 +477,7 @@ function CustomerView({
   const [note, setNote] = useState("");
   const [referrer, setReferrer] = useState("");
   const [phoneError, setPhoneError] = useState("");
+  const [pickupDate, setPickupDate] = useState("");
   const [success, setSuccess] = useState(null);
   const canvasRef = useRef(null);
   const [imgSrc, setImgSrc] = useState(null);
@@ -516,6 +517,7 @@ function CustomerView({
       return;
     }
     if (!isValid8) return;
+    if (!pickupDate) return;
     setPhoneError("");
     var orderItems = {};
     Object.keys(cart).forEach(function(k) { orderItems[k] = cart[k]; });
@@ -526,6 +528,7 @@ function CustomerView({
       phone: phone.trim(),
       referrer: referrer.trim(),
       note: note.trim(),
+      pickupDate: pickupDate,
       items: orderItems,
       total: cartTotal,
       amount: cartAmount,
@@ -558,6 +561,7 @@ function CustomerView({
     setPhone("");
     setNote("");
     setReferrer("");
+    setPickupDate("");
 
     // Send to GAS once (GAS handles stock deduction + order save atomically)
     gasCall({
@@ -579,7 +583,8 @@ function CustomerView({
     const items = Object.entries(success.items);
     const hasNote = success.note && success.note.length > 0;
     const hasReferrer = success.referrer && success.referrer.length > 0;
-    const H = (520 + items.length * 36 + (hasNote ? 60 : 0) + (hasReferrer ? 30 : 0)) * dpr;
+    const hasPickupDate = success.pickupDate && success.pickupDate.length > 0;
+    const H = (520 + items.length * 36 + (hasPickupDate ? 46 : 0) + (hasNote ? 60 : 0) + (hasReferrer ? 30 : 0)) * dpr;
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext("2d");
@@ -666,6 +671,16 @@ function CustomerView({
     ctx.fillStyle = "#fff";
     ctx.font = "500 14px 'Noto Sans TC', sans-serif";
     ctx.fillText(success.name + "  " + success.phone, w - 36, y + 26);
+
+    // Pickup date
+    if (success.pickupDate) {
+      y += 38;
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#00D4AA";
+      ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
+      ctx.fillText("📅 取貨日期：" + success.pickupDate, 36, y);
+      y += 8;
+    }
 
     // Divider
     y += 42;
@@ -1070,7 +1085,32 @@ function CustomerView({
       fontSize: "12px",
       marginTop: "-4px"
     }
-  }, phoneError), /*#__PURE__*/React.createElement("input", {
+  }, phoneError), /*#__PURE__*/React.createElement("div", {
+    style: { marginBottom: "2px" }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { color: "#88B0C0", fontSize: "13px", marginBottom: "8px", fontWeight: 500 }
+  }, "\u53D6\u8CA8\u65E5\u671F"), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", gap: "6px", flexWrap: "wrap" }
+  }, ["4/10", "4/11", "4/12", "4/13", "4/14"].map(function(d) {
+    return /*#__PURE__*/React.createElement("button", {
+      key: d,
+      onClick: function() { setPickupDate(d); },
+      style: {
+        flex: 1,
+        minWidth: "52px",
+        padding: "10px 4px",
+        border: pickupDate === d ? "2px solid #00D4AA" : "1px solid #333",
+        borderRadius: "8px",
+        background: pickupDate === d ? "#00D4AA20" : "#1A1A1A",
+        color: pickupDate === d ? "#00D4AA" : "#888",
+        fontSize: "14px",
+        fontWeight: pickupDate === d ? 700 : 400,
+        cursor: "pointer",
+        fontFamily: "'Noto Sans TC', sans-serif",
+        transition: "all 0.15s"
+      }
+    }, d);
+  }))), /*#__PURE__*/React.createElement("input", {
     value: referrer,
     onChange: e => setReferrer(e.target.value),
     placeholder: "\u63A8\u85A6\u4EBA\u59D3\u540D\uFF08\u9078\u586B\uFF09",
@@ -1101,7 +1141,7 @@ function CustomerView({
       resize: "none"
     }
   })), (() => {
-    const canSubmit = isValid8 && name.trim() && isPhoneValid;
+    const canSubmit = isValid8 && name.trim() && isPhoneValid && pickupDate;
     return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("button", {
       onClick: handleSubmit,
       style: {
@@ -1200,13 +1240,13 @@ function AdminView({
 
   // Generate TSV for clipboard (tab-separated, pastes perfectly into spreadsheets)
   const generateTSV = () => {
-    const header = "訂單編號\t姓名\t電話\t推薦人\t口味明細\t數量\t金額\t時間\t狀態\t客人備註\t門市備註";
+    const header = "訂單編號\t姓名\t電話\t取貨日期\t推薦人\t口味明細\t數量\t金額\t時間\t狀態\t客人備註\t門市備註";
     const rows = orders.map(o => {
       const items = Object.entries(o.items).map(([fid, qty]) => {
         const fl = FLAVORS.find(f => f.id === fid);
         return `${fl?.name}×${qty}`;
       }).join("；");
-      return `${o.orderNo || o.id}\t${o.name}\t${o.phone}\t${o.referrer || ""}\t${items}\t${o.total}\t${o.amount}\t${o.time}\t${o.status === "picked" ? "已取" : "未取"}\t${o.note || ""}\t${o.adminNote || ""}`;
+      return `${o.orderNo || o.id}\t${o.name}\t${o.phone}\t${o.pickupDate || ""}\t${o.referrer || ""}\t${items}\t${o.total}\t${o.amount}\t${o.time}\t${o.status === "picked" ? "已取" : "未取"}\t${o.note || ""}\t${o.adminNote || ""}`;
     }).join("\n");
     return header + "\n" + rows;
   };
@@ -1243,13 +1283,13 @@ function AdminView({
   };
   const openGoogleSheets = () => {
     // Generate CSV content for Google Sheets URL import
-    const header = "訂單編號,姓名,電話,推薦人,口味明細,數量,金額,時間,狀態,客人備註,門市備註";
+    const header = "訂單編號,姓名,電話,取貨日期,推薦人,口味明細,數量,金額,時間,狀態,客人備註,門市備註";
     const rows = orders.map(o => {
       const items = Object.entries(o.items).map(([fid, qty]) => {
         const fl = FLAVORS.find(f => f.id === fid);
         return `${fl?.name}×${qty}`;
       }).join("；");
-      return [o.orderNo || o.id, o.name, o.phone, o.referrer || "", items, o.total, o.amount, o.time, o.status === "picked" ? "已取" : "未取", o.note || "", o.adminNote || ""].join(",");
+      return [o.orderNo || o.id, o.name, o.phone, o.pickupDate || "", o.referrer || "", items, o.total, o.amount, o.time, o.status === "picked" ? "已取" : "未取", o.note || "", o.adminNote || ""].join(",");
     }).join("%0A");
     const csvContent = encodeURIComponent(header) + "%0A" + rows;
     window.open(`https://docs.google.com/spreadsheets/create`, "_blank");
@@ -1461,18 +1501,18 @@ function AdminView({
 
     // Top accent
     ctx.fillStyle = "#8B0023";
-    ctx.fillRect(x + 1, y + 1, LW - 2, 3);
+    ctx.fillRect(x + 1, y + 1, LW - 2, 4);
 
     // Brand
     ctx.fillStyle = "#999";
-    ctx.font = "500 7px 'Noto Sans TC', sans-serif";
+    ctx.font = "500 8px 'Noto Sans TC', sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("HÄAGEN-DAZS", x + LW / 2, cy);
-    cy += 12;
+    cy += 14;
     ctx.fillStyle = "#8B0023";
-    ctx.font = "bold 11px 'Noto Sans TC', sans-serif";
-    ctx.fillText("雪糕買四送四 取貨單", x + LW / 2, cy);
-    cy += 6;
+    ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
+    ctx.fillText("\u96EA\u7CD5\u8CB4\u56DB\u9001\u56DB \u53D6\u8CA8\u55AE", x + LW / 2, cy);
+    cy += 8;
     ctx.strokeStyle = "#8B0023";
     ctx.lineWidth = 1;
     ctx.setLineDash([]);
@@ -1480,80 +1520,92 @@ function AdminView({
     ctx.moveTo(cx, cy);
     ctx.lineTo(rEdge, cy);
     ctx.stroke();
-    cy += 14;
+    cy += 18;
 
     // Name + phone
     ctx.textAlign = "left";
     ctx.fillStyle = "#000";
-    ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+    ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
     ctx.fillText(o.name, cx, cy);
     ctx.fillStyle = "#333";
-    ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+    ctx.font = "400 13px 'Noto Sans TC', sans-serif";
     const nw = ctx.measureText(o.name).width;
-    ctx.fillText(o.phone, cx + nw + 8, cy);
-    cy += 14;
+    ctx.fillText(o.phone, cx + nw + 10, cy);
+
+    cy += 20;
     ctx.fillStyle = "#888";
-    ctx.font = "400 8px monospace";
+    ctx.font = "400 9px monospace";
     ctx.fillText("#" + (o.orderNo || o.id) + "  " + o.time, cx, cy);
     ctx.textAlign = "right";
     ctx.fillStyle = o.status === "picked" ? "#155724" : "#856404";
-    ctx.font = "600 8px 'Noto Sans TC', sans-serif";
-    ctx.fillText(o.status === "picked" ? "✓ 已取" : "⏳ 未取", rEdge, cy);
-    cy += 8;
+    ctx.font = "600 9px 'Noto Sans TC', sans-serif";
+    ctx.fillText(o.status === "picked" ? "\u2713 \u5DF2\u53D6" : "\u23F3 \u672A\u53D6", rEdge, cy);
+
+    // Pickup date
+    if (o.pickupDate) {
+      cy += 18;
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#8B0023";
+      ctx.font = "bold 11px 'Noto Sans TC', sans-serif";
+      ctx.fillText("\uD83D\uDCC5 \u53D6\u8CA8\u65E5\u671F\uFF1A" + o.pickupDate, cx, cy);
+    }
+
+    cy += 14;
     ctx.strokeStyle = "#ddd";
     ctx.lineWidth = 0.5;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(rEdge, cy);
     ctx.stroke();
-    cy += 12;
+    cy += 18;
 
-    // Items
+    // Items - larger font, more spacing
     ctx.textAlign = "left";
     Object.entries(o.items).forEach(([fid, qty]) => {
       const fl = FLAVORS.find(f => f.id === fid);
       ctx.fillStyle = "#333";
-      ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+      ctx.font = "400 13px 'Noto Sans TC', sans-serif";
       ctx.fillText((fl?.emoji || "") + " " + (fl?.name || fid), cx, cy);
       ctx.textAlign = "right";
       ctx.fillStyle = "#8B0023";
-      ctx.font = "bold 11px 'Noto Sans TC', sans-serif";
-      ctx.fillText("× " + qty, rEdge, cy);
+      ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
+      ctx.fillText("\u00D7 " + qty, rEdge, cy);
       ctx.textAlign = "left";
-      cy += 20;
+      cy += 26;
     });
+
     if (o.referrer) {
       ctx.fillStyle = "#888";
-      ctx.font = "400 8px 'Noto Sans TC', sans-serif";
-      ctx.fillText("👤 推薦人：" + o.referrer, cx, cy);
-      cy += 14;
+      ctx.font = "400 10px 'Noto Sans TC', sans-serif";
+      ctx.fillText("\uD83D\uDC64 \u63A8\u85A6\u4EBA\uFF1A" + o.referrer, cx, cy);
+      cy += 18;
     }
     if (o.note) {
       ctx.fillStyle = "#666";
-      ctx.font = "400 8px 'Noto Sans TC', sans-serif";
-      ctx.fillText("📝 " + o.note.slice(0, 30), cx, cy);
-      cy += 14;
+      ctx.font = "400 10px 'Noto Sans TC', sans-serif";
+      ctx.fillText("\uD83D\uDCDD " + o.note.slice(0, 30), cx, cy);
+      cy += 18;
     }
     if (o.adminNote) {
       ctx.fillStyle = "#cc6600";
-      ctx.font = "400 8px 'Noto Sans TC', sans-serif";
-      ctx.fillText("🏪 " + o.adminNote.slice(0, 30), cx, cy);
-      cy += 14;
+      ctx.font = "400 10px 'Noto Sans TC', sans-serif";
+      ctx.fillText("\uD83C\uDFEA " + o.adminNote.slice(0, 30), cx, cy);
+      cy += 18;
     }
 
     // Total bar pinned to bottom
-    const totalY = y + LH - 30;
+    const totalY = y + LH - 36;
     ctx.fillStyle = "#f5f0eb";
-    roundRect(ctx, cx - 2, totalY, LW - pad * 2 + 4, 22, 4);
+    roundRect(ctx, cx - 2, totalY, LW - pad * 2 + 4, 28, 4);
     ctx.fill();
     ctx.textAlign = "left";
     ctx.fillStyle = "#666";
-    ctx.font = "400 9px 'Noto Sans TC', sans-serif";
-    ctx.fillText("合計", cx + 4, totalY + 15);
+    ctx.font = "400 11px 'Noto Sans TC', sans-serif";
+    ctx.fillText("\u5408\u8A08", cx + 4, totalY + 19);
     ctx.textAlign = "right";
     ctx.fillStyle = "#8B0023";
-    ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    ctx.fillText(o.total + " 支 ・ $" + o.amount, rEdge - 2, totalY + 15);
+    ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+    ctx.fillText(o.total + " \u652F \u30FB $" + o.amount, rEdge - 2, totalY + 19);
   };
   const generatePrintLabels = () => {
     if (selectedOrders.length === 0) return;
@@ -2068,7 +2120,14 @@ function AdminView({
   }, Object.entries(o.items).map(([fid, qty]) => {
     const fl = FLAVORS.find(f => f.id === fid);
     return `${fl?.emoji}${fl?.name}×${qty}`;
-  }).join("  ")), o.referrer && /*#__PURE__*/React.createElement("div", {
+  }).join("  ")), o.pickupDate && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: "#00D4AA",
+      marginBottom: "6px",
+      fontWeight: 600
+    }
+  }, "\uD83D\uDCC5 \u53D6\u8CA8\u65E5\u671F\uFF1A", o.pickupDate), o.referrer && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "12px",
       color: "#aaa",
