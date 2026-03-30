@@ -2118,7 +2118,7 @@ function AdminView({
       color: "#888",
       marginBottom: "6px"
     }
-  }, "#", o.orderNo || o.id, " \u30FB ", o.time), /*#__PURE__*/React.createElement("div", {
+  }, "#", o.orderNo || o.id, " \u30FB ", (function(t) { try { var d = new Date(t); return isNaN(d) ? t : d.toLocaleString("zh-TW"); } catch(e) { return t; } })(o.time)), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "12px",
       color: "#ccc",
