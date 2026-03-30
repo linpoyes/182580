@@ -291,8 +291,10 @@ function App() {
   }, mode === "customer" && /*#__PURE__*/React.createElement(CustomerView, {
     stock: stock,
     saveStock: saveStock,
+    setStock: setStock,
     orders: orders,
     saveOrders: saveOrders,
+    setOrders: setOrders,
     loadData: loadData
   }), mode === "admin_locked" && /*#__PURE__*/React.createElement(PinScreen, {
     pin: pin,
@@ -463,8 +465,10 @@ function roundRect(ctx, x, y, w, h, r) {
 function CustomerView({
   stock,
   saveStock,
+  setStock,
   orders,
   saveOrders,
+  setOrders,
   loadData
 }) {
   const [cart, setCart] = useState({});
@@ -531,9 +535,15 @@ function CustomerView({
     // Assign local orderNo
     order.orderNo = String(orders.length + 1).padStart(3, "0");
 
-    // Update UI immediately - show success
-    saveStock(newStock);
-    saveOrders(orders.concat([order]));
+    // Update UI immediately (local only, no GAS call here)
+    setStock(newStock);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newStock)); } catch(e2) {}
+    setOrders(orders.concat([order]));
+    try {
+      var localOrders = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]");
+      localOrders.push(order);
+      localStorage.setItem(ORDERS_KEY, JSON.stringify(localOrders));
+    } catch(e2) {}
     setSuccess(order);
     setCart({});
     setName("");
@@ -541,23 +551,13 @@ function CustomerView({
     setNote("");
     setReferrer("");
 
-    // Save to localStorage
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newStock)); } catch(e2) {}
-    try {
-      var localOrders = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]");
-      localOrders.push(order);
-      localStorage.setItem(ORDERS_KEY, JSON.stringify(localOrders));
-    } catch(e2) {}
-
-    // Send to GAS in background (fire-and-forget)
+    // Send to GAS once (GAS handles stock deduction + order save atomically)
     gasCall({
       action: "saveOrder",
       order: order,
       stockDeductions: orderItems
     }).then(function(res) {
-      if (res && res.ok) {
-        console.log("GAS saved, orderNo:", res.orderNo);
-      }
+      if (res && res.ok) console.log("GAS saved, orderNo:", res.orderNo);
       loadData();
     }).catch(function(e2) { console.warn("GAS send failed:", e2); });
   };
@@ -1129,7 +1129,7 @@ function AdminView({
   useEffect(() => {
     const interval = setInterval(() => {
       loadData();
-    }, 15000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [loadData]);
   const [editStock, setEditStock] = useState(null);
