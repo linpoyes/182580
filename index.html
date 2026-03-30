@@ -38,19 +38,30 @@ const PRICE_PER_UNIT = 129; // 原價每支 $129（$1032/8）
 const ADMIN_PIN = "a182580"; // 門市端密碼
 
 // === GAS API ===
-// 部署後把下面的網址換成你的 GAS Web App URL
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwxNufDCVemKkNW8WUu-dzDcvQj000RA9z_D0rbFh4_SOAxTHiSHTeuwdjJ3Op-VyAI/exec";
 
 const api = async (body) => {
   try {
     const res = await fetch(GAS_URL, {
       method: "POST",
-      headers: { "Content-Type": "text/plain" },
       body: JSON.stringify(body),
+      redirect: "follow",
     });
-    return await res.json();
+    const text = await res.text();
+    try { return JSON.parse(text); } catch { return { error: "Parse error", raw: text }; }
   } catch (e) {
     console.error("API error:", e);
+    return { error: e.toString() };
+  }
+};
+
+const fetchData = async () => {
+  try {
+    const res = await fetch(GAS_URL, { redirect: "follow" });
+    const text = await res.text();
+    try { return JSON.parse(text); } catch { return { error: "Parse error", raw: text }; }
+  } catch (e) {
+    console.error("Fetch error:", e);
     return { error: e.toString() };
   }
 };
@@ -88,22 +99,17 @@ function App() {
 
   // Load data from GAS (with localStorage fallback)
   const loadData = useCallback(async () => {
-    try {
-      const res = await fetch(GAS_URL);
-      const data = await res.json();
-      if (data.ok) {
-        setStock(data.stock && Object.keys(data.stock).length > 0 ? data.stock : getInitialStock());
-        setOrders(data.orders || []);
-        // Cache locally
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.stock)); } catch(e) {}
-        try { localStorage.setItem(ORDERS_KEY, JSON.stringify(data.orders)); } catch(e) {}
-        setLoading(false);
-        return;
-      }
-    } catch (e) {
-      console.warn("GAS fetch failed, using local cache:", e);
+    const data = await fetchData();
+    if (data && data.ok) {
+      setStock(data.stock && Object.keys(data.stock).length > 0 ? data.stock : getInitialStock());
+      setOrders(data.orders || []);
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.stock)); } catch(e) {}
+      try { localStorage.setItem(ORDERS_KEY, JSON.stringify(data.orders)); } catch(e) {}
+      setLoading(false);
+      return;
     }
     // Fallback to localStorage
+    console.warn("GAS unavailable, using local cache");
     try {
       const s = localStorage.getItem(STORAGE_KEY);
       const o = localStorage.getItem(ORDERS_KEY);
