@@ -498,6 +498,7 @@ function CustomerView({
   };
   const isPhoneValid = /^09\d{8}$/.test(phone.trim());
   const handleSubmit = () => {
+    try {
     if (!name.trim()) return;
     if (!isPhoneValid) {
       setPhoneError("請輸入正確的10碼手機號碼（09開頭）");
@@ -505,6 +506,8 @@ function CustomerView({
     }
     if (!isValid8) return;
     setPhoneError("");
+    var orderItems = {};
+    Object.keys(cart).forEach(function(k) { orderItems[k] = cart[k]; });
     const order = {
       id: generateId(),
       orderNo: "---",
@@ -512,23 +515,18 @@ function CustomerView({
       phone: phone.trim(),
       referrer: referrer.trim(),
       note: note.trim(),
-      items: {
-        ...cart
-      },
+      items: orderItems,
       total: cartTotal,
       amount: cartAmount,
       time: new Date().toLocaleString("zh-TW"),
       status: "pending"
     };
-    const savedCart = {
-      ...cart
-    };
 
     // Deduct stock locally
     var newStock = {};
     Object.keys(stock).forEach(function(k) { newStock[k] = stock[k]; });
-    Object.keys(savedCart).forEach(function(fid) {
-      newStock[fid] = Math.max(0, (newStock[fid] || 0) - savedCart[fid]);
+    Object.keys(orderItems).forEach(function(fid) {
+      newStock[fid] = Math.max(0, (newStock[fid] || 0) - orderItems[fid]);
     });
 
     // Assign local orderNo
@@ -543,26 +541,30 @@ function CustomerView({
     setPhone("");
     setNote("");
     setReferrer("");
+
     // Save to localStorage
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newStock)); } catch(e) {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newStock)); } catch(e2) {}
     try {
       var localOrders = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]");
       localOrders.push(order);
       localStorage.setItem(ORDERS_KEY, JSON.stringify(localOrders));
-    } catch(e) {}
+    } catch(e2) {}
 
     // Send to GAS in background (fire-and-forget)
     gasCall({
       action: "saveOrder",
       order: order,
-      stockDeductions: savedCart
+      stockDeductions: orderItems
     }).then(function(res) {
       if (res && res.ok) {
         console.log("GAS saved, orderNo:", res.orderNo);
       }
-      // Sync latest data
       loadData();
-    }).catch(function(e) { console.warn("GAS send failed:", e); });
+    }).catch(function(e2) { console.warn("GAS send failed:", e2); });
+
+    } catch(err) {
+      alert("Submit error: " + err.toString());
+    }
   };
 
   // --- Generate order image on canvas ---
