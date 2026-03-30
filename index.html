@@ -498,6 +498,7 @@ function CustomerView({
   };
   const isPhoneValid = /^09\d{8}$/.test(phone.trim());
   const handleSubmit = () => {
+    alert("DEBUG: name=" + name.trim() + " phone=" + phone.trim() + " isValid8=" + isValid8 + " isPhoneValid=" + isPhoneValid + " cartTotal=" + cartTotal);
     if (!name.trim()) return;
     if (!isPhoneValid) {
       setPhoneError("請輸入正確的10碼手機號碼（09開頭）");
