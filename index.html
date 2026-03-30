@@ -71,46 +71,39 @@ const ADMIN_PIN = "a182580"; // 門市端密碼
 
 // === GAS API ===
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwxNufDCVemKkNW8WUu-dzDcvQj000RA9z_D0rbFh4_SOAxTHiSHTeuwdjJ3Op-VyAI/exec";
-const api = async body => {
-  try {
-    const res = await fetch(GAS_URL, {
-      method: "POST",
-      body: JSON.stringify(body),
-      redirect: "follow"
-    });
-    const text = await res.text();
-    try {
-      return JSON.parse(text);
-    } catch(e) {
-      return {
-        error: "Parse error",
-        raw: text
-      };
-    }
-  } catch (e) {
-    console.error("API error:", e);
-    return {
-      error: e.toString()
-    };
-  }
+
+// POST to GAS using fetch with text/plain (most reliable for GAS CORS)
+var api = function(body) {
+  return fetch(GAS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(body),
+    redirect: "follow",
+    mode: "cors"
+  }).then(function(res) { return res.text(); })
+    .then(function(text) { try { return JSON.parse(text); } catch(e) { return { error: "parse", raw: text }; } })
+    .catch(function(e) { console.error("API err:", e); return { error: e.toString() }; });
 };
+
+// GET data from GAS
 var fetchData = function() {
   return new Promise(function(resolve) {
     var done = false;
     var timer = setTimeout(function() { if (!done) { done = true; resolve({ error: "timeout" }); } }, 8000);
-    fetch(GAS_URL, { redirect: "follow" }).then(function(res) {
-      return res.text();
-    }).then(function(text) {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      try { resolve(JSON.parse(text)); } catch(e) { resolve({ error: "parse" }); }
-    }).catch(function(e) {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      resolve({ error: e.toString() });
-    });
+    fetch(GAS_URL, { redirect: "follow", mode: "cors" })
+      .then(function(res) { return res.text(); })
+      .then(function(text) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try { resolve(JSON.parse(text)); } catch(e) { resolve({ error: "parse", raw: text }); }
+      })
+      .catch(function(e) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve({ error: e.toString() });
+      });
   });
 };
 const STORAGE_KEY = "haagen-stock";
@@ -146,16 +139,23 @@ function App() {
   const [tapCount, setTapCount] = useState(0);
   const tapTimer = useRef(null);
 
+  // Sync status
+  const [syncStatus, setSyncStatus] = useState("syncing");
+
   // Sync from GAS in background (non-blocking)
   const loadData = useCallback(function() {
+    setSyncStatus("syncing");
     fetchData().then(function(data) {
       if (data && data.ok) {
         setStock(data.stock && Object.keys(data.stock).length > 0 ? data.stock : getInitialStock());
         setOrders(data.orders || []);
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.stock)); } catch(e) {}
         try { localStorage.setItem(ORDERS_KEY, JSON.stringify(data.orders)); } catch(e) {}
+        setSyncStatus("ok");
+      } else {
+        setSyncStatus("error: " + JSON.stringify(data).slice(0, 80));
       }
-    }).catch(function(e) { console.warn("GAS sync failed:", e); });
+    }).catch(function(e) { setSyncStatus("fail: " + e.toString().slice(0, 80)); });
   }, []);
   useEffect(function() {
     loadData();
@@ -2577,6 +2577,35 @@ try {
 } catch(e) {
   document.getElementById('root').innerHTML = '<div style="padding:40px;color:#ff6b6b;text-align:center;font-family:sans-serif"><h2>JS Error</h2><p style="color:#aaa;font-size:12px;word-break:break-all">' + String(e) + '</p></div>';
 }
+
+// Debug: show GAS connection status
+(function() {
+  var d = document.createElement('div');
+  d.id = 'gas-debug';
+  d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;padding:8px;background:#000c;color:#0f0;font-size:11px;font-family:monospace;z-index:9999;text-align:center;';
+  d.textContent = '⏳ Testing GAS...';
+  document.body.appendChild(d);
+  
+  fetch(GAS_URL, { redirect: "follow", mode: "cors" })
+    .then(function(r) { d.textContent = '📡 Status: ' + r.status + ' ' + r.type; return r.text(); })
+    .then(function(t) {
+      try {
+        var j = JSON.parse(t);
+        d.style.color = j.ok ? '#0f0' : '#f80';
+        d.textContent = j.ok ? '✅ GAS OK! Orders: ' + (j.orders||[]).length + ' Stock keys: ' + Object.keys(j.stock||{}).length : '⚠️ GAS response: ' + t.slice(0, 100);
+      } catch(e) {
+        d.style.color = '#f00';
+        d.textContent = '❌ Not JSON: ' + t.slice(0, 120);
+      }
+    })
+    .catch(function(e) {
+      d.style.color = '#f00';
+      d.textContent = '❌ Fetch failed: ' + e.toString();
+    });
+    
+  // Auto-hide after 15 seconds
+  setTimeout(function() { d.style.display = 'none'; }, 15000);
+})();
 </script>
 </body>
 </html>
