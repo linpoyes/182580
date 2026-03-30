@@ -95,30 +95,24 @@ error: e.toString()
 };
 }
 };
-const fetchData = async () => {
-try {
-const controller = new AbortController();
-const timeout = setTimeout(() => controller.abort(), 5000);
-const res = await fetch(GAS_URL, {
-redirect: “follow”,
-signal: controller.signal
+var fetchData = function() {
+return new Promise(function(resolve) {
+var done = false;
+var timer = setTimeout(function() { if (!done) { done = true; resolve({ error: “timeout” }); } }, 8000);
+fetch(GAS_URL, { redirect: “follow” }).then(function(res) {
+return res.text();
+}).then(function(text) {
+if (done) return;
+done = true;
+clearTimeout(timer);
+try { resolve(JSON.parse(text)); } catch(e) { resolve({ error: “parse” }); }
+}).catch(function(e) {
+if (done) return;
+done = true;
+clearTimeout(timer);
+resolve({ error: e.toString() });
 });
-clearTimeout(timeout);
-const text = await res.text();
-try {
-return JSON.parse(text);
-} catch(e) {
-return {
-error: “Parse error”,
-raw: text
-};
-}
-} catch (e) {
-console.error(“Fetch error:”, e);
-return {
-error: e.toString()
-};
-}
+});
 };
 const STORAGE_KEY = “haagen-stock”;
 const ORDERS_KEY = “haagen-orders”;
@@ -141,47 +135,30 @@ return stock;
 // — Main App —
 function App() {
 const [mode, setMode] = useState(“customer”);
-const [stock, setStock] = useState(null);
-const [orders, setOrders] = useState(null);
-const [loading, setLoading] = useState(true);
+const [stock, setStock] = useState(function() {
+try { var s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : getInitialStock(); } catch(e) { return getInitialStock(); }
+});
+const [orders, setOrders] = useState(function() {
+try { var o = localStorage.getItem(ORDERS_KEY); return o ? JSON.parse(o) : []; } catch(e) { return []; }
+});
+const [loading, setLoading] = useState(false);
 const [pin, setPin] = useState(””);
 const [pinError, setPinError] = useState(false);
 const [tapCount, setTapCount] = useState(0);
 const tapTimer = useRef(null);
 
-// Load data: show instantly from localStorage, then sync from GAS
-const loadData = useCallback(async () => {
-// Step 1: Show page immediately from local cache
-try {
-const s = localStorage.getItem(STORAGE_KEY);
-const o = localStorage.getItem(ORDERS_KEY);
-if (s || o) {
-setStock(s ? JSON.parse(s) : getInitialStock());
-setOrders(o ? JSON.parse(o) : []);
-setLoading(false);
+// Sync from GAS in background (non-blocking)
+const loadData = useCallback(function() {
+fetchData().then(function(data) {
+if (data && data.ok) {
+setStock(data.stock && Object.keys(data.stock).length > 0 ? data.stock : getInitialStock());
+setOrders(data.orders || []);
+try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.stock)); } catch(e) {}
+try { localStorage.setItem(ORDERS_KEY, JSON.stringify(data.orders)); } catch(e) {}
 }
-} catch(e) {}
-
-```
-// Step 2: Fetch from GAS in background and update
-try {
-  const data = await fetchData();
-  if (data && data.ok) {
-    setStock(data.stock && Object.keys(data.stock).length > 0 ? data.stock : getInitialStock());
-    setOrders(data.orders || []);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.stock)); } catch(e) {}
-    try { localStorage.setItem(ORDERS_KEY, JSON.stringify(data.orders)); } catch(e) {}
-  }
-} catch(e) {
-  console.warn("GAS sync failed:", e);
-}
-
-// Step 3: If still loading (no local cache), show empty state
-setLoading(false);
-```
-
+}).catch(function(e) { console.warn(“GAS sync failed:”, e); });
 }, []);
-useEffect(() => {
+useEffect(function() {
 loadData();
 }, [loadData]);
 
