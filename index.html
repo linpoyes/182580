@@ -215,7 +215,7 @@ function App() {
       {/* Content */}
       <main style={{ maxWidth: "480px", margin: "0 auto", padding: "0 0 80px" }}>
         {mode === "customer" && (
-          <CustomerView stock={stock} saveStock={saveStock} orders={orders} saveOrders={saveOrders} />
+          <CustomerView stock={stock} saveStock={saveStock} orders={orders} saveOrders={saveOrders} loadData={loadData} />
         )}
         {mode === "admin_locked" && (
           <PinScreen pin={pin} setPin={setPin} pinError={pinError} onBack={() => setMode("customer")} onSubmit={(fullPin) => {
@@ -228,7 +228,7 @@ function App() {
           }} />
         )}
         {mode === "admin" && (
-          <AdminView stock={stock} saveStock={saveStock} orders={orders} saveOrders={saveOrders} onLogout={() => setMode("customer")} />
+          <AdminView stock={stock} saveStock={saveStock} orders={orders} saveOrders={saveOrders} onLogout={() => setMode("customer")} loadData={loadData} />
         )}
       </main>
     </div>
@@ -316,7 +316,7 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 // --- Customer View ---
-function CustomerView({ stock, saveStock, orders, saveOrders }) {
+function CustomerView({ stock, saveStock, orders, saveOrders, loadData }) {
   const [cart, setCart] = useState({});
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -352,13 +352,11 @@ function CustomerView({ stock, saveStock, orders, saveOrders }) {
     if (!isPhoneValid) { setPhoneError("請輸入正確的10碼手機號碼（09開頭）"); return; }
     if (!isValid8) return;
     setPhoneError("");
-    const newStock = { ...stock };
-    for (const [fid, qty] of Object.entries(cart)) {
-      newStock[fid] = Math.max(0, (newStock[fid] || 0) - qty);
-    }
+    
+    // Build order (orderNo will be assigned by server)
     const order = {
       id: generateId(),
-      orderNo: getOrderNumber(orders),
+      orderNo: "---",
       name: name.trim(),
       phone: phone.trim(),
       referrer: referrer.trim(),
@@ -369,15 +367,33 @@ function CustomerView({ stock, saveStock, orders, saveOrders }) {
       time: new Date().toLocaleString("zh-TW"),
       status: "pending",
     };
-    const newOrders = [...orders, order];
-    saveStock(newStock);
-    saveOrders(newOrders);
+    
+    // Optimistic UI update
+    const newStock = { ...stock };
+    for (const [fid, qty] of Object.entries(cart)) {
+      newStock[fid] = Math.max(0, (newStock[fid] || 0) - qty);
+    }
+    setStock(newStock);
+    setOrders(prev => [...prev, order]);
     setSuccess(order);
     setCart({});
     setName("");
     setPhone("");
     setNote("");
     setReferrer("");
+    
+    // Send to GAS atomically — server assigns orderNo and deducts stock
+    api({ action: "saveOrder", order, stockDeductions: { ...cart } }).then(res => {
+      if (res && res.ok) {
+        // Update with server-assigned orderNo and accurate stock
+        const serverOrderNo = res.orderNo;
+        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, orderNo: serverOrderNo } : o));
+        setSuccess(prev => prev && prev.id === order.id ? { ...prev, orderNo: serverOrderNo } : prev);
+        if (res.stock) setStock(res.stock);
+        // Refresh all data to stay in sync
+        setTimeout(() => loadData(), 1000);
+      }
+    }).catch(e => console.error("saveOrder error:", e));
   };
 
   // --- Generate order image on canvas ---
@@ -786,8 +802,14 @@ function CustomerView({ stock, saveStock, orders, saveOrders }) {
 }
 
 // --- Admin View ---
-function AdminView({ stock, saveStock, orders, saveOrders, onLogout }) {
+function AdminView({ stock, saveStock, orders, saveOrders, onLogout, loadData }) {
   const [tab, setTab] = useState("orders");
+
+  // Auto-refresh every 15 seconds to sync with other devices
+  useEffect(() => {
+    const interval = setInterval(() => { loadData(); }, 15000);
+    return () => clearInterval(interval);
+  }, [loadData]);
   const [editStock, setEditStock] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingNoteId, setEditingNoteId] = useState(null);
