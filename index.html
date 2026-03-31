@@ -252,7 +252,7 @@ function App() {
       margin: "0 0 2px",
       textShadow: "0 2px 10px rgba(0,0,0,0.2)"
     }
-  }, "\uD83C\uDF66 \u54C8\u6839\u9054\u65AF\u96EA\u7CD5\u8CB7\u56DB\u9001\u56DB"), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDF66 哈根達斯雪糕\u8CB7\u56DB\u9001\u56DB"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "11px",
       color: "rgba(255,255,255,0.75)",
@@ -742,6 +742,16 @@ function CustomerView({
     ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
     ctx.fillText(success.total + " 支 ・ $" + success.amount, w - 36, y + 31);
 
+    // Watermark - large centered diagonal
+    ctx.save();
+    ctx.translate(w / 2, 400);
+    ctx.rotate(-25 * Math.PI / 180);
+    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    ctx.font = "bold 48px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("銅鑼圈門市", 0, 0);
+    ctx.restore();
+
     // Footer notice
     y += 70;
     ctx.textAlign = "center";
@@ -1038,9 +1048,24 @@ function CustomerView({
       display: "flex",
       flexDirection: "column",
       gap: "10px",
-      marginBottom: "20px"
+      marginBottom: "20px",
+      position: "relative"
     }
-  }, /*#__PURE__*/React.createElement("input", {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%) rotate(-25deg)",
+      fontSize: "48px",
+      fontWeight: 900,
+      color: "rgba(255,255,255,0.04)",
+      whiteSpace: "nowrap",
+      pointerEvents: "none",
+      zIndex: 0,
+      letterSpacing: "8px"
+    }
+  }, "銅鑼圈門市"), /*#__PURE__*/React.createElement("input", {
     value: name,
     onChange: e => setName(e.target.value),
     placeholder: "\u59D3\u540D",
@@ -1369,6 +1394,16 @@ function AdminView({
     ctx.fillStyle = "#888";
     ctx.font = "400 11px 'Noto Sans TC', sans-serif";
     ctx.fillText(`共 ${selectedOrders.length} 筆訂單 ・ ${new Date().toLocaleDateString("zh-TW")}`, w / 2, 46);
+
+    // Watermark - large centered diagonal
+    ctx.save();
+    ctx.translate(w / 2, totalH / 2);
+    ctx.rotate(-25 * Math.PI / 180);
+    ctx.fillStyle = "rgba(255,255,255,0.03)";
+    ctx.font = "bold 60px 'Noto Sans TC', sans-serif";
+    ctx.fillText("銅鑼圈門市", 0, 0);
+    ctx.restore();
+
     let y = HEADER_H;
     selectedOrders.forEach((o, idx) => {
       const itemEntries = Object.entries(o.items);
@@ -1508,8 +1543,19 @@ function AdminView({
     cy += 14;
     ctx.fillStyle = "#8B0023";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    ctx.fillText("\u54C8\u6839\u9054\u65AF\u96EA\u7CD5\u8CB4\u56DB\u9001\u56DB \u53D6\u8CA8\u55AE", x + LW / 2, cy);
+    ctx.fillText("哈根達斯雪糕買四送四 取貨單", x + LW / 2, cy);
     cy += 8;
+
+    // Watermark - large centered diagonal
+    ctx.save();
+    ctx.translate(x + LW / 2, y + LH / 2);
+    ctx.rotate(-25 * Math.PI / 180);
+    ctx.fillStyle = "rgba(0,0,0,0.04)";
+    ctx.font = "bold 28px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("銅鑼圈門市", 0, 0);
+    ctx.restore();
+    ctx.textAlign = "center";
     ctx.strokeStyle = "#8B0023";
     ctx.lineWidth = 1;
     ctx.setLineDash([]);
@@ -1937,7 +1983,7 @@ function AdminView({
     }
   }, "\uD83D\uDC46 \u9577\u6309\u5716\u7247\u5132\u5B58\uFF0C\u5217\u5370\u5F8C\u8CBC\u5728\u8CA8\u7BB1\u4E0A\u6838\u5C0D"), /*#__PURE__*/React.createElement("img", {
     src: batchImgSrc,
-    alt: "\u53D6\u8CA8\u55AE",
+    alt: "取貨單",
     style: {
       width: "100%",
       maxWidth: "390px",
