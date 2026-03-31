@@ -484,7 +484,7 @@ function CustomerView({
 
   // Auto-sync stock every 10 seconds + when page becomes visible again
   useEffect(function() {
-    var interval = setInterval(function() { loadData(); }, 10000);
+    var interval = setInterval(function() { loadData(); }, 5000);
     var onVisible = function() { if (!document.hidden) loadData(); };
     document.addEventListener("visibilitychange", onVisible);
     return function() { clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
