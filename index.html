@@ -1250,6 +1250,11 @@ function AdminView({
     setEditStock(null);
   };
   const resetAll = () => {
+    var pwd = prompt("請輸入重置密碼：");
+    if (pwd !== "72839168") {
+      alert("密碼錯誤");
+      return;
+    }
     saveStock(getInitialStock());
     saveOrders([]);
     setConfirmReset(false);
@@ -1825,24 +1830,7 @@ function AdminView({
       fontFamily: "'Noto Sans TC', sans-serif",
       outline: "none"
     }
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      loadData();
-    },
-    style: {
-      padding: "12px 16px",
-      border: "none",
-      borderRadius: "10px",
-      background: "linear-gradient(135deg, #00D4AA, #00B4DC)",
-      color: "#fff",
-      fontSize: "13px",
-      cursor: "pointer",
-      fontFamily: "'Noto Sans TC', sans-serif",
-      whiteSpace: "nowrap",
-      fontWeight: 600,
-      boxShadow: "0 2px 8px rgba(0,180,220,0.3)"
-    }
-  }, "\u540C\u6B65")), filteredOrders.length > 0 && /*#__PURE__*/React.createElement("div", {
+  })), filteredOrders.length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
